@@ -1,0 +1,63 @@
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: false
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - copyloopvar
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errcheck
+    - errname
+    - exhaustive
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - misspell
+    - prealloc
+    - staticcheck
+    - testableexamples
+    - tparallel
+    - unconvert
+    - unused
+    - sloglint
+    - usetesting
+    - gocritic
+    - wastedassign
+    - whitespace
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupword
+        path: "pkg/plugins/jbig2/decoder_cgo\\.go"
+        text: "NULL,"
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/gotenberg/litho)
+      custom-order: true
+  exclusions:
+    generated: lax
