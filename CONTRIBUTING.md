@@ -29,13 +29,13 @@ go build ./...
 ### Development Loop
 
 ```bash
-make fmt              # Format Go code + tidy modules
-make prettify         # Prettier formatting for non-Go files (markdown, YAML, JSON)
-make lint             # golangci-lint (strict)
-make lint-prettier    # Prettier check for non-Go files
-make lint-todo        # Find TODO comments via godox
-make test-unit        # Unit tests (go test -race ./...)
-make godoc            # Browse docs at http://localhost:6060
+make fmt           # Format Go code + tidy modules
+make prettify      # Prettier formatting for non-Go files (markdown, YAML, JSON)
+make lint          # golangci-lint (strict)
+make lint-prettier # Prettier check for non-Go files
+make lint-todo     # Find TODO comments via godox
+make test-unit     # Unit tests (go test -race ./...)
+make godoc         # Browse docs at http://localhost:6060
 ```
 
 Run `make fmt && make lint` before submitting code. Run `make prettify && make lint-prettier` for non-Go files. Zero warnings policy.
