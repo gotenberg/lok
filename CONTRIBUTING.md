@@ -34,8 +34,10 @@ make prettify      # Prettier formatting for non-Go files (markdown, YAML, JSON)
 make lint          # golangci-lint (strict)
 make lint-prettier # Prettier check for non-Go files
 make lint-todo     # Find TODO comments via godox
-make test-unit     # Unit tests (go test -race ./...)
-make godoc         # Browse docs at http://localhost:6060
+make build-test       # Build the Docker image for testing
+make test-unit        # Unit tests in Docker
+make test-integration # Integration tests in Docker
+make godoc            # Browse docs at http://localhost:6060
 ```
 
 Run `make fmt && make lint` before submitting code. Run `make prettify && make lint-prettier` for non-Go files. Zero warnings policy.
@@ -106,6 +108,7 @@ LibreOffice leaks memory over time (~0.5 MiB per conversion). The `TrimMemory` m
 ```
 lok/
 ├── go.mod
+├── Dockerfile                     Docker image for testing
 ├── README.md
 ├── CONTRIBUTING.md
 │
@@ -125,7 +128,11 @@ lok/
 │       ├── lokbridge.h            C header wrapping LOK vtable calls
 │       └── lokbridge.c            C implementation
 │
-└── testdata/                      Test fixture documents (.docx, .xlsx, .pptx, .odt)
+└── test/integration/
+    ├── lok_test.go                Integration tests (//go:build integration)
+    ├── lifecycle_test.go          Lifecycle integration tests
+    ├── benchmark_test.go          Benchmark (//go:build benchmark)
+    └── testdata/                  Test fixture documents (.docx, .xlsx, .pptx)
 ```
 
 Import path:
@@ -185,16 +192,24 @@ Run `make fmt` to enforce formatting. Import order enforced by golangci-lint: st
 
 ## Testing
 
+All tests run inside Docker because the package requires CGO and `libreofficekit-dev` headers. Build the image first:
+
+```bash
+make build-test
+```
+
 ### Unit Tests
 
-Tests use `_test.go` convention in the same package. Run with `make test-unit`.
+Tests use `_test.go` convention in the same package:
+
+```bash
+make test-unit
+```
 
 ### Integration Tests
 
-Tests requiring LibreOffice use the `//go:build integration` build tag. They live alongside unit tests but are excluded from `make test-unit`. Run with:
+Tests requiring LibreOffice use the `//go:build integration` build tag. They live in `test/integration/` with test fixtures in `test/integration/testdata/`:
 
 ```bash
-go test -tags integration ./...
+make test-integration
 ```
-
-Integration tests skip automatically if test fixtures in `testdata/` are missing.

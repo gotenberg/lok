@@ -30,6 +30,14 @@ godoc: ## Run a webserver with lok godoc
 	$(info http://localhost:6060/pkg/github.com/gotenberg/lok)
 	godoc -http=:6060
 
+.PHONY: build-test
+build-test: ## Build the Docker image for testing
+	docker build -t lok-testing .
+
 .PHONY: test-unit
-test-unit: ## Run unit tests
-	go test -race ./...
+test-unit: ## Run unit tests in Docker
+	docker run --rm lok-testing test -race -count=1 -v ./pkg/lok/...
+
+.PHONY: test-integration
+test-integration: ## Run integration tests in Docker
+	docker run --rm lok-testing test -tags integration -race -count=1 -v ./...

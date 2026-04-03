@@ -1,7 +1,6 @@
 package cgo
 
 /*
-#cgo CFLAGS: -DLOK_USE_UNSTABLE_API
 #cgo LDFLAGS: -ldl
 #include "lokbridge.h"
 */

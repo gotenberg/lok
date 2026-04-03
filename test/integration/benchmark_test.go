@@ -1,16 +1,18 @@
 //go:build benchmark
 
-package lok
+package integration
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gotenberg/lok/pkg/lok"
 )
 
 func BenchmarkLifecycle_200Conversions(b *testing.B) {
-	inputPath := filepath.Join("..", "..", "testdata", "document.docx")
+	inputPath := filepath.Join("testdata", "document.docx")
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		b.Skip("test fixture not found, see testdata/README.md")
 	}
@@ -20,7 +22,7 @@ func BenchmarkLifecycle_200Conversions(b *testing.B) {
 		progPath = "/usr/lib/libreoffice/program"
 	}
 
-	lc, err := NewLifecycle(LifecycleConfig{
+	lc, err := lok.NewLifecycle(lok.LifecycleConfig{
 		ProgramPath:  progPath,
 		TrimInterval: 10,
 	})
@@ -35,7 +37,7 @@ func BenchmarkLifecycle_200Conversions(b *testing.B) {
 	for i := 0; i < 200; i++ {
 		outPath := filepath.Join(b.TempDir(), fmt.Sprintf("output_%d.pdf", i))
 
-		err = lc.Convert(inputPath, outPath, DefaultOptions())
+		err = lc.Convert(inputPath, outPath, lok.DefaultOptions())
 		if err != nil {
 			b.Fatalf("Convert %d failed: %v", i, err)
 		}

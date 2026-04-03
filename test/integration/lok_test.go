@@ -1,6 +1,6 @@
 //go:build integration
 
-package lok
+package integration
 
 import (
 	"errors"
@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gotenberg/lok/pkg/lok"
 )
 
 func programPath(t *testing.T) string {
@@ -23,7 +25,7 @@ func programPath(t *testing.T) string {
 func testdataPath(t *testing.T, name string) string {
 	t.Helper()
 
-	path := filepath.Join("..", "..", "testdata", name)
+	path := filepath.Join("testdata", name)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Skipf("test fixture not found, see testdata/README.md: %s", path)
 	}
@@ -31,10 +33,10 @@ func testdataPath(t *testing.T, name string) string {
 	return path
 }
 
-func initOffice(t *testing.T) *Office {
+func initOffice(t *testing.T) *lok.Office {
 	t.Helper()
 
-	office, err := Init(programPath(t))
+	office, err := lok.Init(programPath(t))
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -44,7 +46,7 @@ func initOffice(t *testing.T) *Office {
 	return office
 }
 
-func saveToPDF(t *testing.T, office *Office, inputPath, filterOptions string) string {
+func saveToPDF(t *testing.T, office *lok.Office, inputPath, filterOptions string) string {
 	t.Helper()
 
 	doc, err := office.LoadDocument(inputPath)
@@ -92,7 +94,7 @@ func TestBasicDocxToPDF(t *testing.T) {
 
 	defer doc.Close()
 
-	if doc.Type() != TextDocument {
+	if doc.Type() != lok.TextDocument {
 		t.Errorf("Type() = %v, want TextDocument", doc.Type())
 	}
 
@@ -117,7 +119,7 @@ func TestBasicXlsxToPDF(t *testing.T) {
 
 	defer doc.Close()
 
-	if doc.Type() != SpreadsheetDocument {
+	if doc.Type() != lok.SpreadsheetDocument {
 		t.Errorf("Type() = %v, want SpreadsheetDocument", doc.Type())
 	}
 
@@ -142,7 +144,7 @@ func TestBasicPptxToPDF(t *testing.T) {
 
 	defer doc.Close()
 
-	if doc.Type() != PresentationDocument {
+	if doc.Type() != lok.PresentationDocument {
 		t.Errorf("Type() = %v, want PresentationDocument", doc.Type())
 	}
 
@@ -160,13 +162,13 @@ func TestFilterOptions_Quality(t *testing.T) {
 	office := initOffice(t)
 	inputPath := testdataPath(t, "document.docx")
 
-	lowOpts := DefaultOptions()
+	lowOpts := lok.DefaultOptions()
 	lowOpts.Quality = 10
-	lowFilter := BuildFilterOptions(lowOpts)
+	lowFilter := lok.BuildFilterOptions(lowOpts)
 
-	highOpts := DefaultOptions()
+	highOpts := lok.DefaultOptions()
 	highOpts.Quality = 90
-	highFilter := BuildFilterOptions(highOpts)
+	highFilter := lok.BuildFilterOptions(highOpts)
 
 	lowPath := saveToPDF(t, office, inputPath, lowFilter)
 	highPath := saveToPDF(t, office, inputPath, highFilter)
@@ -181,9 +183,9 @@ func TestPageRanges(t *testing.T) {
 
 	fullPath := saveToPDF(t, office, inputPath, "")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.PageRanges = "1"
-	rangePath := saveToPDF(t, office, inputPath, BuildFilterOptions(opts))
+	rangePath := saveToPDF(t, office, inputPath, lok.BuildFilterOptions(opts))
 
 	assertValidPDF(t, fullPath)
 	assertValidPDF(t, rangePath)
@@ -214,7 +216,7 @@ func TestLoadError(t *testing.T) {
 		t.Fatal("expected error for nonexistent document")
 	}
 
-	if !errors.Is(err, ErrLoadFailed) {
+	if !errors.Is(err, lok.ErrLoadFailed) {
 		t.Fatalf("expected ErrLoadFailed, got: %v", err)
 	}
 }
@@ -334,10 +336,10 @@ func TestConvert_WithLandscape(t *testing.T) {
 	inputPath := testdataPath(t, "document.docx")
 	outPath := filepath.Join(t.TempDir(), "landscape.pdf")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.Landscape = true
 
-	err := Convert(office, inputPath, outPath, opts)
+	err := lok.Convert(office, inputPath, outPath, opts)
 	if err != nil {
 		t.Fatalf("Convert with landscape failed: %v", err)
 	}
@@ -350,10 +352,10 @@ func TestConvert_WithPassword(t *testing.T) {
 	inputPath := testdataPath(t, "password.docx")
 	outPath := filepath.Join(t.TempDir(), "output.pdf")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.Password = "password"
 
-	err := Convert(office, inputPath, outPath, opts)
+	err := lok.Convert(office, inputPath, outPath, opts)
 	if err != nil {
 		t.Fatalf("Convert with password failed: %v", err)
 	}
@@ -366,10 +368,10 @@ func TestConvert_WithPageRanges(t *testing.T) {
 	inputPath := testdataPath(t, "document.docx")
 	outPath := filepath.Join(t.TempDir(), "output.pdf")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.PageRanges = "1"
 
-	err := Convert(office, inputPath, outPath, opts)
+	err := lok.Convert(office, inputPath, outPath, opts)
 	if err != nil {
 		t.Fatalf("Convert with page ranges failed: %v", err)
 	}
@@ -410,11 +412,11 @@ func TestConvert_CalcLandscape_SaveAs(t *testing.T) {
 	inputPath := testdataPath(t, "spreadsheet.xlsx")
 	outPath := filepath.Join(t.TempDir(), "landscape_saveas.pdf")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.Landscape = true
-	opts.ExportMethod = ExportViaSaveAs
+	opts.ExportMethod = lok.ExportViaSaveAs
 
-	err := Convert(office, inputPath, outPath, opts)
+	err := lok.Convert(office, inputPath, outPath, opts)
 	if err != nil {
 		t.Fatalf("Convert via SaveAs failed: %v", err)
 	}
@@ -427,11 +429,11 @@ func TestConvert_CalcLandscape_UnoCommand(t *testing.T) {
 	inputPath := testdataPath(t, "spreadsheet.xlsx")
 	outPath := filepath.Join(t.TempDir(), "landscape_uno.pdf")
 
-	opts := DefaultOptions()
+	opts := lok.DefaultOptions()
 	opts.Landscape = true
-	opts.ExportMethod = ExportViaUnoCommand
+	opts.ExportMethod = lok.ExportViaUnoCommand
 
-	err := Convert(office, inputPath, outPath, opts)
+	err := lok.Convert(office, inputPath, outPath, opts)
 	if err != nil {
 		t.Fatalf("Convert via UnoCommand failed: %v", err)
 	}
@@ -452,22 +454,22 @@ func TestConvert_CalcLandscape_BothMethods(t *testing.T) {
 	saveAsPath := filepath.Join(t.TempDir(), "saveas.pdf")
 	unoPath := filepath.Join(t.TempDir(), "uno.pdf")
 
-	saveAsOpts := DefaultOptions()
+	saveAsOpts := lok.DefaultOptions()
 	saveAsOpts.Landscape = true
-	saveAsOpts.ExportMethod = ExportViaSaveAs
+	saveAsOpts.ExportMethod = lok.ExportViaSaveAs
 
-	err := Convert(office, inputPath, saveAsPath, saveAsOpts)
+	err := lok.Convert(office, inputPath, saveAsPath, saveAsOpts)
 	if err != nil {
 		t.Fatalf("Convert via SaveAs failed: %v", err)
 	}
 
 	assertValidPDF(t, saveAsPath)
 
-	unoOpts := DefaultOptions()
+	unoOpts := lok.DefaultOptions()
 	unoOpts.Landscape = true
-	unoOpts.ExportMethod = ExportViaUnoCommand
+	unoOpts.ExportMethod = lok.ExportViaUnoCommand
 
-	err = Convert(office, inputPath, unoPath, unoOpts)
+	err = lok.Convert(office, inputPath, unoPath, unoOpts)
 	if err != nil {
 		t.Fatalf("Convert via UnoCommand failed: %v", err)
 	}

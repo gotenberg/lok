@@ -1,16 +1,18 @@
 //go:build integration
 
-package lok
+package integration
 
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/gotenberg/lok/pkg/lok"
 )
 
 func TestLifecycle_Integration(t *testing.T) {
 	inputPath := testdataPath(t, "document.docx")
 
-	lc, err := NewLifecycle(LifecycleConfig{
+	lc, err := lok.NewLifecycle(lok.LifecycleConfig{
 		ProgramPath:  programPath(t),
 		TrimInterval: 3,
 	})
@@ -23,7 +25,7 @@ func TestLifecycle_Integration(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		outPath := filepath.Join(t.TempDir(), "output.pdf")
 
-		err = lc.Convert(inputPath, outPath, DefaultOptions())
+		err = lc.Convert(inputPath, outPath, lok.DefaultOptions())
 		if err != nil {
 			t.Fatalf("Convert %d failed: %v", i, err)
 		}
