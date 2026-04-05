@@ -55,7 +55,7 @@ type Options struct {
 
 	// Password is used to open password-protected documents.
 	// Not a filter option.
-	Password string
+	Password string //nolint:gosec // document open password, not a credential
 
 	// UpdateIndexes refreshes table of contents and indexes before export.
 	// Not a filter option.

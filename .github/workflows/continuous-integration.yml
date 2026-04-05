@@ -1,0 +1,119 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || 'main' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-test:
+    name: Build test image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and cache Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: lok-testing
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  lint:
+    name: Lint Golang codebase
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load test image from cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lok-testing
+          cache-from: type=gha
+
+      - name: Run linters
+        run: make lint
+
+  lint-prettier:
+    name: Lint non-Golang codebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linters
+        run: make lint-prettier
+
+  test-unit:
+    name: Run unit tests
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load test image from cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lok-testing
+          cache-from: type=gha
+
+      - name: Run unit tests
+        run: make test-unit
+
+  test-integration:
+    name: Run integration tests
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load test image from cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lok-testing
+          cache-from: type=gha
+
+      - name: Run integration tests
+        run: make test-integration

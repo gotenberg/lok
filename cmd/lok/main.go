@@ -179,7 +179,7 @@ type longRunningRequest struct {
 	OutputPath string `json:"outputPath"`
 
 	// All Options fields are optional overrides.
-	Password                        *string `json:"password,omitempty"`
+	Password                        *string `json:"password,omitempty"` //nolint:gosec // document open password, not a credential
 	MacroExecutionMode              *int    `json:"macroExecutionMode,omitempty"`
 	Landscape                       *bool   `json:"landscape,omitempty"`
 	PaperFormat                     *int    `json:"paperFormat,omitempty"`
