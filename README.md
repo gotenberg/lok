@@ -100,7 +100,7 @@ if err != nil {
 }
 ```
 
-The [Lifecycle] type automates memory trimming between conversions:
+The `Lifecycle` type automates memory trimming between conversions:
 
 ```go
 lc, err := lok.NewLifecycle(lok.LifecycleConfig{
