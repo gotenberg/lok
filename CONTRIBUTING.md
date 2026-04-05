@@ -3,37 +3,30 @@
 **lok** is a Go library providing CGO bindings to LibreOfficeKit for document-to-PDF conversion. It loads LibreOffice as an in-process shared library via `dlopen`, eliminating the need for Python, UNO sockets, or external process management.
 
 - Module: `github.com/gotenberg/lok`
-- Go version: 1.23.0
+- Go version: 1.26.0
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.26.0+
-- LibreOffice (runtime)
-- `libreofficekit-dev` (build-time headers for CGO)
-- CGO enabled (`CGO_ENABLED=1`)
+- Docker
 
-Install build dependencies on Debian/Ubuntu:
-
-```bash
-apt-get install -y libreofficekit-dev
-```
+All build dependencies (Go, LibreOffice, `libreofficekit-dev`, `golangci-lint`) are installed in the Docker image. See the [README](README.md#prerequisites) for the full list if you need a local setup.
 
 ### Build
 
 ```bash
-go build ./...
+make build-test
 ```
 
 ### Development Loop
 
 ```bash
-make fmt           # Format Go code + tidy modules
-make prettify      # Prettier formatting for non-Go files (markdown, YAML, JSON)
-make lint          # golangci-lint (strict)
-make lint-prettier # Prettier check for non-Go files
-make lint-todo     # Find TODO comments via godox
+make fmt              # Format Go code + tidy modules
+make prettify         # Prettier formatting for non-Go files (markdown, YAML, JSON)
+make lint             # golangci-lint (strict)
+make lint-prettier    # Prettier check for non-Go files
+make lint-todo        # Find TODO comments via godox
 make build-test       # Build the Docker image for testing
 make test-unit        # Unit tests in Docker
 make test-integration # Integration tests in Docker
@@ -112,11 +105,14 @@ lok/
 ├── README.md
 ├── CONTRIBUTING.md
 │
+├── cmd/lok/
+│   └── main.go                    CLI binary (single-shot and long-running modes)
+│
 ├── pkg/lok/
 │   ├── doc.go                     Package documentation
 │   ├── office.go                  Office API (Init, Close, LoadDocument, TrimMemory)
 │   ├── document.go                Document API (SaveAs, Close, PostUnoCommand)
-│   ├── options.go                 Options struct, BuildFilterOptions JSON builder
+│   ├── options.go                 Options, BuildFilterOptions, BuildPrinterProps, BuildLoadOptions
 │   ├── errors.go                  Sentinel errors
 │   ├── doctype.go                 DocumentType enum
 │   ├── convert.go                 Convert orchestrator (load → configure → save)
