@@ -33,4 +33,3 @@ WORKDIR /src
 COPY go.mod ./
 RUN go mod download
 COPY . .
-
