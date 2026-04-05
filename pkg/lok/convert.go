@@ -7,16 +7,21 @@ import "fmt"
 // calls to Convert if needed (e.g., via an external queue or supervisor).
 //
 // The conversion pipeline:
-//  1. Load the document (with password if provided).
-//  2. Apply landscape orientation if requested.
-//  3. Update indexes if requested.
-//  4. Export to PDF with filter options built from opts.
+//  1. Build load options from password and macro settings.
+//  2. Load the document.
+//  3. Apply printer descriptor properties (landscape, paper format/size)
+//     via .uno:Printer if any are set.
+//  4. Apply page style fallback for landscape if needed.
+//  5. Update indexes if requested.
+//  6. Export to PDF with filter options built from opts.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
+	loadOpts := BuildLoadOptions(opts)
+
 	var doc *Document
 	var err error
 
-	if opts.Password != "" {
-		doc, err = office.LoadDocumentWithOptions(inputPath, opts.Password)
+	if loadOpts != "" {
+		doc, err = office.LoadDocumentWithOptions(inputPath, loadOpts)
 	} else {
 		doc, err = office.LoadDocument(inputPath)
 	}
@@ -27,6 +32,18 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 
 	defer doc.Close()
 
+	// Apply printer descriptor properties (orientation, paper format/size).
+	printerProps := BuildPrinterProps(opts)
+	if printerProps != "" {
+		err = doc.PostUnoCommand(".uno:Printer", printerProps)
+		if err != nil {
+			return fmt.Errorf("%w: printer descriptor: %s", ErrSaveFailed, err)
+		}
+	}
+
+	// Fallback: set page style dimensions for landscape. The printer descriptor
+	// sets orientation for the print/export path, but saveAs may not respect it.
+	// The page style approach ensures the output dimensions are correct.
 	if opts.Landscape {
 		err = doc.SetLandscape(true)
 		if err != nil {
@@ -46,7 +63,9 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 	switch opts.ExportMethod {
 	case ExportViaUnoCommand:
 		return doc.ExportPDFViaUnoCommand(outputPath, filterOptions)
-	default:
+	case ExportViaSaveAs:
 		return doc.SaveAs(outputPath, "pdf", filterOptions)
 	}
+
+	return doc.SaveAs(outputPath, "pdf", filterOptions)
 }

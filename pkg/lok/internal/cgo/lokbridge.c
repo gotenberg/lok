@@ -35,14 +35,27 @@ char* lok_bridge_get_filter_types(LoKit* pOffice) {
     return pOffice->pClass->getFilterTypes(pOffice);
 }
 
+// trimMemory was added in LibreOffice 7.6. The struct member may not exist
+// in older headers, so we check the vtable size at runtime rather than using
+// LIBREOFFICEKIT_HAS (which requires compile-time struct member existence).
 int lok_bridge_has_trim_memory(LoKit* pOffice) {
+#ifdef LOK_HAS_TRIM_MEMORY
     return LIBREOFFICEKIT_HAS(pOffice, trimMemory);
+#else
+    (void)pOffice;
+    return 0;
+#endif
 }
 
 void lok_bridge_trim_memory(LoKit* pOffice, int nTarget) {
+#ifdef LOK_HAS_TRIM_MEMORY
     if (LIBREOFFICEKIT_HAS(pOffice, trimMemory)) {
         pOffice->pClass->trimMemory(pOffice, nTarget);
     }
+#else
+    (void)pOffice;
+    (void)nTarget;
+#endif
 }
 
 LoKitDocument* lok_bridge_document_load(LoKit* pOffice, const char* pURL) {

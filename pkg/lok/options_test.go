@@ -23,6 +23,8 @@ func TestDefaultOptions(t *testing.T) {
 		{"Landscape", opts.Landscape, false},
 		{"Password", opts.Password, ""},
 		{"PageRanges", opts.PageRanges, ""},
+		{"PaperFormat", int(opts.PaperFormat), -1},
+		{"MacroExecutionMode", opts.MacroExecutionMode, 0},
 	}
 
 	for _, c := range checks {
@@ -305,5 +307,103 @@ func assertProp(t *testing.T, props map[string]map[string]any, name, typ string,
 
 	if prop["value"] != value {
 		t.Errorf("%s: value = %v (%T), want %v (%T)", name, prop["value"], prop["value"], value, value)
+	}
+}
+
+func TestBuildPrinterProps_Empty(t *testing.T) {
+	result := BuildPrinterProps(DefaultOptions())
+	if result != "" {
+		t.Fatalf("expected empty string for defaults, got: %s", result)
+	}
+}
+
+func TestBuildPrinterProps_Landscape(t *testing.T) {
+	opts := DefaultOptions()
+	opts.Landscape = true
+
+	result := BuildPrinterProps(opts)
+	props := parseFilterJSON(t, result)
+
+	assertProp(t, props, "PaperOrientation", "long", float64(1))
+
+	if len(props) != 1 {
+		t.Fatalf("expected 1 property, got %d: %s", len(props), result)
+	}
+}
+
+func TestBuildPrinterProps_PaperFormat(t *testing.T) {
+	opts := DefaultOptions()
+	opts.PaperFormat = PaperFormatA3
+
+	result := BuildPrinterProps(opts)
+	props := parseFilterJSON(t, result)
+
+	assertProp(t, props, "PaperFormat", "long", float64(0))
+}
+
+func TestBuildPrinterProps_CustomSize(t *testing.T) {
+	opts := DefaultOptions()
+	opts.PaperFormat = PaperFormatUser
+	opts.PaperWidth = 21000
+	opts.PaperHeight = 29700
+
+	result := BuildPrinterProps(opts)
+	props := parseFilterJSON(t, result)
+
+	assertProp(t, props, "PaperFormat", "long", float64(8))
+	assertProp(t, props, "PaperSize", "string", "21000x29700")
+}
+
+func TestBuildPrinterProps_LandscapeAndFormat(t *testing.T) {
+	opts := DefaultOptions()
+	opts.Landscape = true
+	opts.PaperFormat = PaperFormatA4
+
+	result := BuildPrinterProps(opts)
+	props := parseFilterJSON(t, result)
+
+	assertProp(t, props, "PaperOrientation", "long", float64(1))
+	assertProp(t, props, "PaperFormat", "long", float64(1))
+
+	if len(props) != 2 {
+		t.Fatalf("expected 2 properties, got %d: %s", len(props), result)
+	}
+}
+
+func TestBuildLoadOptions_Empty(t *testing.T) {
+	result := BuildLoadOptions(DefaultOptions())
+	if result != "" {
+		t.Fatalf("expected empty string for defaults, got: %s", result)
+	}
+}
+
+func TestBuildLoadOptions_Password(t *testing.T) {
+	opts := DefaultOptions()
+	opts.Password = "secret"
+
+	result := BuildLoadOptions(opts)
+	if result != "Password=secret" {
+		t.Fatalf("expected Password=secret, got: %s", result)
+	}
+}
+
+func TestBuildLoadOptions_MacroExecutionMode(t *testing.T) {
+	opts := DefaultOptions()
+	opts.MacroExecutionMode = 7
+
+	result := BuildLoadOptions(opts)
+	if result != "MacroExecutionMode=7" {
+		t.Fatalf("expected MacroExecutionMode=7, got: %s", result)
+	}
+}
+
+func TestBuildLoadOptions_Combined(t *testing.T) {
+	opts := DefaultOptions()
+	opts.Password = "secret"
+	opts.MacroExecutionMode = 7
+
+	result := BuildLoadOptions(opts)
+	if result != "Password=secret,MacroExecutionMode=7" {
+		t.Fatalf("expected Password=secret,MacroExecutionMode=7, got: %s", result)
 	}
 }

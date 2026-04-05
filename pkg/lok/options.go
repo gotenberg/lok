@@ -19,14 +19,31 @@ const (
 	ExportViaUnoCommand ExportMethod = 1
 )
 
+// PaperFormat represents a paper size from the com.sun.star.view.PaperFormat
+// enum used by the LibreOffice printer descriptor.
+type PaperFormat int
+
+const (
+	PaperFormatA3      PaperFormat = 0
+	PaperFormatA4      PaperFormat = 1
+	PaperFormatA5      PaperFormat = 2
+	PaperFormatB4      PaperFormat = 3
+	PaperFormatB5      PaperFormat = 4
+	PaperFormatLetter  PaperFormat = 5
+	PaperFormatLegal   PaperFormat = 6
+	PaperFormatTabloid PaperFormat = 7
+	PaperFormatUser    PaperFormat = 8
+)
+
 // Options configures PDF export behavior for LibreOffice document conversion.
 //
 // Most fields map directly to UNO filter properties passed to saveAs via
-// [BuildFilterOptions]. Three fields are handled separately by the conversion
-// layer and are not included in the filter string:
-//   - Landscape: applied via a UNO command before export.
-//   - Password: passed as a document load option.
-//   - UpdateIndexes: applied via a UNO command before export.
+// [BuildFilterOptions]. Several fields are handled separately by the
+// conversion layer:
+//   - Landscape, PaperFormat, PaperWidth, PaperHeight: applied via
+//     .uno:Printer (printer descriptor) before export.
+//   - Password, MacroExecutionMode: passed as document load options.
+//   - UpdateIndexes: applied via .uno:UpdateAllIndexes before export.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.
@@ -48,6 +65,24 @@ type Options struct {
 	// LOK saveAs call. [ExportViaUnoCommand] uses .uno:ExportDirectToPDF,
 	// which goes through the print path. Not a filter option.
 	ExportMethod ExportMethod
+
+	// MacroExecutionMode controls macro execution when loading the document.
+	// 0 = never (default), 7 = always. Passed as a document load option.
+	// Not a filter option.
+	MacroExecutionMode int
+
+	// PaperFormat sets the paper format via the printer descriptor before
+	// export. Use [PaperFormatUser] with PaperWidth/PaperHeight for custom
+	// sizes. -1 means unset (default). Not a filter option.
+	PaperFormat PaperFormat
+
+	// PaperWidth sets the custom paper width in 1/100mm. Only used when
+	// PaperFormat is [PaperFormatUser]. Not a filter option.
+	PaperWidth int
+
+	// PaperHeight sets the custom paper height in 1/100mm. Only used when
+	// PaperFormat is [PaperFormatUser]. Not a filter option.
+	PaperHeight int
 
 	// ExportFormFields preserves PDF form fields in the output.
 	ExportFormFields bool
@@ -173,13 +208,14 @@ type Options struct {
 // built-in PDF export defaults.
 func DefaultOptions() Options {
 	return Options{
-		ExportFormFields:   true,
-		ExportBookmarks:    true,
-		Quality:            90,
-		MaxImageResolution: 300,
-		Zoom:               100,
+		ExportFormFields:     true,
+		ExportBookmarks:      true,
+		Quality:              90,
+		MaxImageResolution:   300,
+		Zoom:                 100,
 		UseTransitionEffects: true,
 		OpenBookmarkLevels:   -1,
+		PaperFormat:          -1,
 	}
 }
 
@@ -273,4 +309,69 @@ func BuildFilterOptions(opts Options) string {
 	}
 
 	return string(data)
+}
+
+// BuildPrinterProps builds a JSON string for .uno:Printer from [Options].
+// Returns an empty string if no printer descriptor properties are set.
+//
+// Printer descriptor properties come from com.sun.star.view.PrinterDescriptor:
+// PaperOrientation (0=portrait, 1=landscape), PaperFormat, and PaperSize.
+func BuildPrinterProps(opts Options) string {
+	props := make(map[string]filterProp)
+
+	if opts.Landscape {
+		props["PaperOrientation"] = filterProp{Type: "long", Value: 1}
+	}
+
+	if opts.PaperFormat >= 0 {
+		props["PaperFormat"] = filterProp{Type: "long", Value: int(opts.PaperFormat)}
+	}
+
+	if opts.PaperWidth > 0 && opts.PaperHeight > 0 {
+		props["PaperSize"] = filterProp{
+			Type:  "string",
+			Value: fmt.Sprintf("%dx%d", opts.PaperWidth, opts.PaperHeight),
+		}
+	}
+
+	if len(props) == 0 {
+		return ""
+	}
+
+	data, err := json.Marshal(props)
+	if err != nil {
+		panic(fmt.Sprintf("lok: failed to marshal printer props: %v", err))
+	}
+
+	return string(data)
+}
+
+// BuildLoadOptions builds a document load options string from [Options].
+// Returns an empty string if no load options are set.
+//
+// Format: comma-separated key=value pairs (e.g., "Password=secret").
+func BuildLoadOptions(opts Options) string {
+	var parts []string
+
+	if opts.Password != "" {
+		parts = append(parts, "Password="+opts.Password)
+	}
+
+	if opts.MacroExecutionMode > 0 {
+		parts = append(parts, fmt.Sprintf("MacroExecutionMode=%d", opts.MacroExecutionMode))
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	result := ""
+	for i, p := range parts {
+		if i > 0 {
+			result += ","
+		}
+		result += p
+	}
+
+	return result
 }
