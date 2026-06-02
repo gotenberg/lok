@@ -14,10 +14,15 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"strings"
+	"syscall"
 
 	"github.com/gotenberg/lok/pkg/lok"
 )
@@ -28,6 +33,8 @@ const (
 )
 
 func main() {
+	ensureAsyncPreemptOff()
+
 	opts := defineFlags()
 	flag.Parse()
 
@@ -38,6 +45,51 @@ func main() {
 	}
 
 	os.Exit(runOnce(opts))
+}
+
+// ensureAsyncPreemptOff re-executes the process with GODEBUG=asyncpreemptoff=1
+// when it is not already set. LibreOffice installs signal handlers without
+// SA_ONSTACK, and Go's async preemption (SIGURG) can then crash the runtime.
+// GODEBUG must be set before the runtime starts, so the only reliable fix from
+// within the binary is to re-exec. This must run before lok.Init.
+func ensureAsyncPreemptOff() {
+	const want = "asyncpreemptoff=1"
+
+	for _, entry := range strings.Split(os.Getenv("GODEBUG"), ",") {
+		if entry == want {
+			return
+		}
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		// Best effort: warn and continue rather than abort.
+		fmt.Fprintf(os.Stderr, "warning: could not enable %s: %v\n", want, err)
+		return
+	}
+
+	godebug := want
+	if existing := os.Getenv("GODEBUG"); existing != "" {
+		godebug = existing + "," + want
+	}
+
+	// Replace any existing GODEBUG entry rather than appending a duplicate,
+	// otherwise the new value may be ignored and the process re-execs forever.
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "GODEBUG=") {
+			continue
+		}
+		env = append(env, e)
+	}
+	env = append(env, "GODEBUG="+godebug)
+
+	// Re-exec this same binary with its own arguments to set GODEBUG before the
+	// runtime starts. The executable and arguments are this process's own, not
+	// external input.
+	if err := syscall.Exec(exe, os.Args, env); err != nil { //nolint:gosec // re-exec of self with own args
+		fmt.Fprintf(os.Stderr, "warning: could not enable %s: %v\n", want, err)
+	}
 }
 
 // cliOptions holds all parsed flag values.
@@ -121,7 +173,7 @@ func defineFlags() *cliOptions {
 	flag.BoolVar(&o.AddOriginalDocumentAsStream, "add-original-document-as-stream", defaults.AddOriginalDocumentAsStream, "Embed source document")
 
 	// PDF standards.
-	flag.IntVar(&o.PDFVersion, "pdf-version", defaults.PDFVersion, "PDF version (0=1.7, 1=A-1b, 2=A-2b, 3=A-3b)")
+	flag.IntVar(&o.PDFVersion, "pdf-version", defaults.PDFVersion, "PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b)")
 	flag.BoolVar(&o.PDFUniversalAccess, "pdf-universal-access", defaults.PDFUniversalAccess, "Enable PDF/UA compliance")
 
 	// Watermark.
@@ -240,45 +292,61 @@ func runLongRunning(opts *cliOptions) int {
 	}
 
 	enc := json.NewEncoder(os.Stdout)
-	scanner := bufio.NewScanner(os.Stdin)
 
-	// 10 MiB max line size for large JSON requests.
-	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
+	// Read line-delimited requests with a growable reader rather than a
+	// bufio.Scanner, so an oversized request cannot terminate the server.
+	reader := bufio.NewReaderSize(os.Stdin, 1024*1024)
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	for {
+		line, readErr := reader.ReadBytes('\n')
+
+		if len(bytes.TrimSpace(line)) > 0 {
+			// An Encode error means stdout is broken; nothing actionable, so
+			// drop it and keep serving requests.
+			_ = enc.Encode(processRequest(office, line))
 		}
 
-		var req longRunningRequest
-		if err := json.Unmarshal(line, &req); err != nil {
-			_ = enc.Encode(longRunningResponse{Error: fmt.Sprintf("invalid JSON: %v", err)})
-			continue
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				return exitSuccess
+			}
+
+			fmt.Fprintf(os.Stderr, "error reading stdin: %v\n", readErr)
+			return exitError
 		}
+	}
+}
 
-		if req.InputPath == "" || req.OutputPath == "" {
-			_ = enc.Encode(longRunningResponse{Error: "inputPath and outputPath are required"})
-			continue
+// processRequest converts a single long-running request. It recovers from Go
+// panics so a single malformed or failing request cannot bring down the server.
+// A native LibreOffice crash (a segfault inside CGO) still terminates the
+// process and cannot be recovered here.
+func processRequest(office *lok.Office, line []byte) (resp longRunningResponse) {
+	defer func() {
+		if r := recover(); r != nil {
+			resp = longRunningResponse{Error: fmt.Sprintf("panic during conversion: %v", r)}
 		}
+	}()
 
-		lokOpts := buildOptsFromRequest(req)
-
-		if err := lok.Convert(office, req.InputPath, req.OutputPath, lokOpts); err != nil {
-			_ = enc.Encode(longRunningResponse{Error: err.Error()})
-		} else {
-			_ = enc.Encode(longRunningResponse{Success: true})
-		}
-
-		office.TrimMemory(0)
+	var req longRunningRequest
+	if err := json.Unmarshal(line, &req); err != nil {
+		return longRunningResponse{Error: fmt.Sprintf("invalid JSON: %v", err)}
 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "error reading stdin: %v\n", err)
-		return exitError
+	if req.InputPath == "" || req.OutputPath == "" {
+		return longRunningResponse{Error: "inputPath and outputPath are required"}
 	}
 
-	return exitSuccess
+	err := lok.Convert(office, req.InputPath, req.OutputPath, buildOptsFromRequest(req))
+
+	// Trim caches after each conversion attempt, matching single-shot mode.
+	office.TrimMemory(0)
+
+	if err != nil {
+		return longRunningResponse{Error: err.Error()}
+	}
+
+	return longRunningResponse{Success: true}
 }
 
 func buildOptsFromRequest(req longRunningRequest) lok.Options {
