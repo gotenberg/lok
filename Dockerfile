@@ -30,6 +30,4 @@ RUN curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/ins
  | sh -s -- -b /usr/local/bin "${GOLANGCI_LINT_VERSION}"
 
 WORKDIR /src
-COPY go.mod ./
-RUN go mod download
 COPY . .
