@@ -88,7 +88,10 @@ office, err := lok.Init("/usr/lib/libreoffice/program")
 if err != nil {
     log.Fatal(err)
 }
-defer office.Close()
+// Do not call office.Close(): LibreOffice's destroy() can crash the Go runtime
+// during shutdown (it installs signal handlers without SA_ONSTACK). For a
+// short-lived process, let process exit reclaim resources. If you must call
+// Close, run with GODEBUG=asyncpreemptoff=1.
 
 opts := lok.DefaultOptions()
 opts.Landscape = true
@@ -110,7 +113,8 @@ lc, err := lok.NewLifecycle(lok.LifecycleConfig{
 if err != nil {
     log.Fatal(err)
 }
-defer lc.Close()
+// As with office.Close(), avoid lc.Close() unless running with
+// GODEBUG=asyncpreemptoff=1; prefer letting process exit reclaim resources.
 
 err = lc.Convert("input.docx", "output.pdf", lok.DefaultOptions())
 ```
