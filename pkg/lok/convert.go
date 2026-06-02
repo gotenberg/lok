@@ -41,9 +41,9 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 		}
 	}
 
-	// Fallback: set page style dimensions for landscape. The printer descriptor
-	// sets orientation for the print/export path, but saveAs may not respect it.
-	// The page style approach ensures the output dimensions are correct.
+	// The printer descriptor orientation governs the print/UNO-export path. The
+	// default saveAs path takes orientation from the page style instead, so set
+	// it via .uno:AttributePageSize as well.
 	if opts.Landscape {
 		err = doc.SetLandscape(true)
 		if err != nil {
@@ -60,11 +60,10 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 
 	filterOptions := BuildFilterOptions(opts)
 
-	switch opts.ExportMethod {
-	case ExportViaUnoCommand:
+	// Any value other than the experimental UNO path uses saveAs, including
+	// unrecognized ExportMethod values.
+	if opts.ExportMethod == ExportViaUnoCommand {
 		return doc.ExportPDFViaUnoCommand(outputPath, filterOptions)
-	case ExportViaSaveAs:
-		return doc.SaveAs(outputPath, "pdf", filterOptions)
 	}
 
 	return doc.SaveAs(outputPath, "pdf", filterOptions)
