@@ -237,6 +237,10 @@ func TestTrimMemory(t *testing.T) {
 	// Perform a conversion to populate caches.
 	saveToPDF(t, inputPath, "")
 
+	// trimMemory is a no-op unless built against LibreOffice 7.6+ headers with
+	// -DLOK_HAS_TRIM_MEMORY. Log the capability so an inert build is visible.
+	t.Logf("HasTrimMemory = %v", sharedOffice.HasTrimMemory())
+
 	// Gentle trim.
 	sharedOffice.TrimMemory(0)
 
