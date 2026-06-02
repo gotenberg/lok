@@ -35,7 +35,7 @@ func TestLifecycle_TrimInterval(t *testing.T) {
 		gentleTrimEvery: true,
 	}
 
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		lc.afterConversion()
 	}
 

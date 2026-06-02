@@ -94,6 +94,10 @@ func (lc *Lifecycle) Office() *Office {
 
 // Convert runs a document conversion and performs memory trimming afterward.
 // See [Convert] for the conversion pipeline details.
+//
+// Convert is not safe for concurrent use: it shares a single [Office], and a
+// conversion workflow is not atomic. Serialize calls with an external lock or a
+// queue.
 func (lc *Lifecycle) Convert(inputPath, outputPath string, opts Options) error {
 	err := Convert(lc.office, inputPath, outputPath, opts)
 	if err != nil {
@@ -125,6 +129,8 @@ func (lc *Lifecycle) ConversionCount() int64 {
 }
 
 // Close destroys the underlying [Office] instance and releases resources.
+// See [Office.Close] for the shutdown crash caveat: prefer letting process exit
+// reclaim resources unless running with GODEBUG=asyncpreemptoff=1.
 func (lc *Lifecycle) Close() {
 	lc.office.Close()
 }
