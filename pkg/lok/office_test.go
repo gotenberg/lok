@@ -50,3 +50,11 @@ func TestLoadDocument_AfterClose(t *testing.T) {
 		t.Fatalf("expected ErrOfficeDestroyed, got: %v", err)
 	}
 }
+
+func TestHasTrimMemory_Closed(t *testing.T) {
+	o := &Office{closed: true}
+
+	if o.HasTrimMemory() {
+		t.Fatal("a closed office must report no trim memory support")
+	}
+}
