@@ -1,7 +1,7 @@
 version: "2"
 run:
   issues-exit-code: 1
-  tests: false
+  tests: true
 linters:
   default: none
   enable:
@@ -42,10 +42,10 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      # Test cases for distinct document types are intentionally similar.
       - linters:
-          - dupword
-        path: "pkg/plugins/jbig2/decoder_cgo\\.go"
-        text: "NULL,"
+          - dupl
+        path: _test\.go
 formatters:
   enable:
     - gci
@@ -57,7 +57,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/gotenberg/litho)
+        - prefix(github.com/gotenberg/lok)
       custom-order: true
   exclusions:
     generated: lax
