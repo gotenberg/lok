@@ -13,7 +13,8 @@ func TestDefaultOptions(t *testing.T) {
 		got  any
 		want any
 	}{
-		{"ExportFormFields", opts.ExportFormFields, true},
+		{"ExportFormFields", opts.ExportFormFields, false},
+		{"ReduceImageResolution", opts.ReduceImageResolution, true},
 		{"ExportBookmarks", opts.ExportBookmarks, true},
 		{"Quality", opts.Quality, 90},
 		{"MaxImageResolution", opts.MaxImageResolution, 300},
@@ -184,7 +185,7 @@ func TestBuildFilterOptions_Watermark(t *testing.T) {
 func TestBuildFilterOptions_AllOptions(t *testing.T) {
 	opts := Options{
 		PageRanges:                      "1-5",
-		ExportFormFields:                false,
+		ExportFormFields:                true,
 		AllowDuplicateFieldNames:        true,
 		ExportBookmarks:                 false,
 		ExportBookmarksToPdfDestination: true,
@@ -201,7 +202,7 @@ func TestBuildFilterOptions_AllOptions(t *testing.T) {
 		SinglePageSheets:                true,
 		LosslessImageCompression:        true,
 		Quality:                         50,
-		ReduceImageResolution:           true,
+		ReduceImageResolution:           false,
 		MaxImageResolution:              150,
 		PDFVersion:                      2,
 		PDFUniversalAccess:              true,
@@ -228,7 +229,8 @@ func TestBuildFilterOptions_AllOptions(t *testing.T) {
 
 	// Verify a representative set of properties.
 	assertProp(t, props, "PageRange", "string", "1-5")
-	assertProp(t, props, "ExportFormFields", "boolean", false)
+	assertProp(t, props, "ExportFormFields", "boolean", true)
+	assertProp(t, props, "ReduceImageResolution", "boolean", false)
 	assertProp(t, props, "ExportBookmarks", "boolean", false)
 	assertProp(t, props, "IsSkipEmptyPages", "boolean", true)
 	assertProp(t, props, "UseLosslessCompression", "boolean", true)
@@ -351,7 +353,58 @@ func TestBuildPrinterProps_CustomSize(t *testing.T) {
 	props := parseFilterJSON(t, result)
 
 	assertProp(t, props, "PaperFormat", "long", float64(8))
-	assertProp(t, props, "PaperSize", "string", "21000x29700")
+
+	paperSize, ok := props["PaperSize"]
+	if !ok {
+		t.Fatal("missing PaperSize property")
+	}
+
+	if paperSize["type"] != "any" {
+		t.Errorf("PaperSize type = %v, want any", paperSize["type"])
+	}
+
+	size, ok := paperSize["value"].(map[string]any)
+	if !ok {
+		t.Fatalf("PaperSize value is not an object: %T", paperSize["value"])
+	}
+
+	if size["type"] != "com.sun.star.awt.Size" {
+		t.Errorf("PaperSize value type = %v, want com.sun.star.awt.Size", size["type"])
+	}
+
+	dims, ok := size["value"].(map[string]any)
+	if !ok {
+		t.Fatalf("awt.Size value is not an object: %T", size["value"])
+	}
+
+	for name, want := range map[string]float64{"Width": 21000, "Height": 29700} {
+		field, ok := dims[name].(map[string]any)
+		if !ok {
+			t.Fatalf("%s is not an object: %T", name, dims[name])
+		}
+
+		if field["type"] != "long" {
+			t.Errorf("%s type = %v, want long", name, field["type"])
+		}
+
+		if field["value"] != want {
+			t.Errorf("%s value = %v, want %v", name, field["value"], want)
+		}
+	}
+}
+
+func TestBuildPrinterProps_CustomSizeRequiresUserFormat(t *testing.T) {
+	opts := DefaultOptions()
+	opts.PaperFormat = PaperFormatA4
+	opts.PaperWidth = 21000
+	opts.PaperHeight = 29700
+
+	result := BuildPrinterProps(opts)
+	props := parseFilterJSON(t, result)
+
+	if _, ok := props["PaperSize"]; ok {
+		t.Error("PaperSize must not be emitted unless PaperFormat is PaperFormatUser")
+	}
 }
 
 func TestBuildPrinterProps_LandscapeAndFormat(t *testing.T) {

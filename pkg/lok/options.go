@@ -3,6 +3,7 @@ package lok
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // ExportMethod controls which LibreOffice API is used to produce the PDF.
@@ -85,6 +86,7 @@ type Options struct {
 	PaperHeight int
 
 	// ExportFormFields preserves PDF form fields in the output.
+	// Defaults to false, matching LibreOffice.
 	ExportFormFields bool
 
 	// AllowDuplicateFieldNames allows duplicate form field names.
@@ -141,12 +143,13 @@ type Options struct {
 	Quality int
 
 	// ReduceImageResolution downscales images to MaxImageResolution.
+	// Defaults to true, matching LibreOffice.
 	ReduceImageResolution bool
 
 	// MaxImageResolution sets the target DPI when ReduceImageResolution is true.
 	MaxImageResolution int
 
-	// PDFVersion selects the PDF version (0=PDF 1.4, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b).
+	// PDFVersion selects the PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b).
 	// Maps to UNO property "SelectPdfVersion".
 	PDFVersion int
 
@@ -208,14 +211,14 @@ type Options struct {
 // built-in PDF export defaults.
 func DefaultOptions() Options {
 	return Options{
-		ExportFormFields:     true,
-		ExportBookmarks:      true,
-		Quality:              90,
-		MaxImageResolution:   300,
-		Zoom:                 100,
-		UseTransitionEffects: true,
-		OpenBookmarkLevels:   -1,
-		PaperFormat:          -1,
+		ExportBookmarks:       true,
+		Quality:               90,
+		MaxImageResolution:    300,
+		ReduceImageResolution: true,
+		Zoom:                  100,
+		UseTransitionEffects:  true,
+		OpenBookmarkLevels:    -1,
+		PaperFormat:           -1,
 	}
 }
 
@@ -327,10 +330,19 @@ func BuildPrinterProps(opts Options) string {
 		props["PaperFormat"] = filterProp{Type: "long", Value: int(opts.PaperFormat)}
 	}
 
-	if opts.PaperWidth > 0 && opts.PaperHeight > 0 {
+	// PaperSize is a com.sun.star.awt.Size (1/100mm), only meaningful with a
+	// custom (user) paper format. It must be encoded as the structured awt.Size
+	// below, since LibreOffice silently ignores a plain "WxH" string.
+	if opts.PaperFormat == PaperFormatUser && opts.PaperWidth > 0 && opts.PaperHeight > 0 {
 		props["PaperSize"] = filterProp{
-			Type:  "string",
-			Value: fmt.Sprintf("%dx%d", opts.PaperWidth, opts.PaperHeight),
+			Type: "any",
+			Value: map[string]any{
+				"type": "com.sun.star.awt.Size",
+				"value": map[string]any{
+					"Width":  filterProp{Type: "long", Value: opts.PaperWidth},
+					"Height": filterProp{Type: "long", Value: opts.PaperHeight},
+				},
+			},
 		}
 	}
 
@@ -365,13 +377,13 @@ func BuildLoadOptions(opts Options) string {
 		return ""
 	}
 
-	result := ""
+	var result strings.Builder
 	for i, p := range parts {
 		if i > 0 {
-			result += ","
+			result.WriteString(",")
 		}
-		result += p
+		result.WriteString(p)
 	}
 
-	return result
+	return result.String()
 }
