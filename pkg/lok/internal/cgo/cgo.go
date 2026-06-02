@@ -54,7 +54,23 @@ func InitWithUserProfile(installPath, profilePath string) (*Office, error) {
 
 // Destroy releases the LibreOfficeKit instance.
 func (o *Office) Destroy() {
+	if o.handle == nil {
+		return
+	}
+
 	C.lok_bridge_destroy(o.handle)
+	o.handle = nil
+}
+
+// lastError returns an error built from LibreOffice's last error message,
+// falling back to a generic message when LibreOffice reports no detail.
+func (o *Office) lastError() error {
+	msg := o.GetError()
+	if msg == "" {
+		msg = "libreoffice reported no error detail"
+	}
+
+	return errors.New(msg)
 }
 
 // GetError retrieves and returns the last error message from LibreOffice.
@@ -115,7 +131,7 @@ func (o *Office) LoadDocument(path string) (*Document, error) {
 
 	handle := C.lok_bridge_document_load(o.handle, cPath)
 	if handle == nil {
-		return nil, errors.New(o.GetError())
+		return nil, o.lastError()
 	}
 
 	return &Document{handle: handle, office: o}, nil
@@ -131,7 +147,7 @@ func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error
 
 	handle := C.lok_bridge_document_load_with_options(o.handle, cPath, cOptions)
 	if handle == nil {
-		return nil, errors.New(o.GetError())
+		return nil, o.lastError()
 	}
 
 	return &Document{handle: handle, office: o}, nil
@@ -139,7 +155,12 @@ func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error
 
 // Destroy releases the document handle.
 func (d *Document) Destroy() {
+	if d.handle == nil {
+		return
+	}
+
 	C.lok_bridge_document_destroy(d.handle)
+	d.handle = nil
 }
 
 // SaveAs exports the document to the given path in the specified format.
@@ -156,7 +177,7 @@ func (d *Document) SaveAs(path, format, filterOptions string) error {
 
 	result := C.lok_bridge_document_save_as(d.handle, cPath, cFormat, cFilter)
 	if result == 0 {
-		return errors.New(d.office.GetError())
+		return d.office.lastError()
 	}
 
 	return nil
