@@ -13,9 +13,6 @@ var (
 	// ErrSaveFailed indicates that a document could not be saved.
 	ErrSaveFailed = errors.New("failed to save document")
 
-	// ErrInvalidPDFFormat indicates an unsupported PDF format value.
-	ErrInvalidPDFFormat = errors.New("invalid PDF format")
-
 	// ErrOfficeDestroyed indicates the [Office] instance has already been
 	// destroyed.
 	ErrOfficeDestroyed = errors.New("office instance has been destroyed")
