@@ -118,6 +118,19 @@ func (o *Office) HasTrimMemory() bool {
 	return C.lok_bridge_has_trim_memory(o.handle) != 0
 }
 
+// RunMacro runs a Basic macro by its macro:// URL.
+// LOK runMacro returns 0 on failure, unlike typical C convention.
+func (o *Office) RunMacro(url string) error {
+	cURL := C.CString(url)
+	defer C.free(unsafe.Pointer(cURL))
+
+	if C.lok_bridge_run_macro(o.handle, cURL) == 0 {
+		return o.lastError()
+	}
+
+	return nil
+}
+
 // TrimMemory asks LibreOffice to release cached memory. The target parameter
 // controls aggressiveness: 0 for gentle, 2000 for aggressive.
 func (o *Office) TrimMemory(target int) {

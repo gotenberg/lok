@@ -40,6 +40,12 @@ char* lok_bridge_get_filter_types(LoKit* pOffice) {
     return pOffice->pClass->getFilterTypes(pOffice);
 }
 
+// LOK runMacro returns 0 on failure, unlike typical C convention.
+int lok_bridge_run_macro(LoKit* pOffice, const char* pURL) {
+    if (!pOffice) return 0;
+    return pOffice->pClass->runMacro(pOffice, pURL);
+}
+
 // trimMemory was added in LibreOffice 7.6. Older LibreOfficeKit headers do not
 // declare the struct member, so referencing it (even through LIBREOFFICEKIT_HAS,
 // which uses offsetof) fails to compile. Build with -DLOK_HAS_TRIM_MEMORY (via

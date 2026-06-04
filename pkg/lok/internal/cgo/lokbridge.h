@@ -23,6 +23,9 @@ void lok_bridge_free_error(LoKit* pOffice, char* pErr);
 char* lok_bridge_get_version_info(LoKit* pOffice);
 char* lok_bridge_get_filter_types(LoKit* pOffice);
 
+// Scripting.
+int lok_bridge_run_macro(LoKit* pOffice, const char* pURL);
+
 // Memory.
 int lok_bridge_has_trim_memory(LoKit* pOffice);
 void lok_bridge_trim_memory(LoKit* pOffice, int nTarget);
