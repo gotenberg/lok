@@ -219,3 +219,14 @@ func TestBehavior_CalcLandscape(t *testing.T) {
 		t.Fatalf("calc landscape: expected width > height, got %.0f x %.0f", w, h)
 	}
 }
+
+// TestBehavior_UpdateIndexes validates that the index-refresh path runs through
+// the preparation macro and produces a valid PDF.
+func TestBehavior_UpdateIndexes(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	opts := lok.DefaultOptions()
+	opts.UpdateIndexes = true
+
+	convertFixture(t, input, opts)
+}

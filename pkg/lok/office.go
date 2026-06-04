@@ -26,8 +26,11 @@ type Office struct {
 	managedProfile string
 }
 
-// geometryEnv is the environment variable the geometry macro reads.
-const geometryEnv = "LOK_GEOM"
+// Environment variables the preparation macro reads.
+const (
+	geometryEnv      = "LOK_GEOM"
+	updateIndexesEnv = "LOK_UPDATE_INDEXES"
+)
 
 // Init loads LibreOffice from the given program directory and returns an
 // [Office] ready for document operations. The programPath must point to the
@@ -124,12 +127,13 @@ func (o *Office) Close() {
 	}
 }
 
-// applyGeometry runs the geometry macro to set page orientation and size on the
-// currently loaded document. landscape sets the orientation. width and height
-// are in 1/100 mm; 0 keeps the document's current size. A page-geometry change
-// is not reachable through a UNO dispatch in headless LibreOfficeKit, so a Basic
-// macro applies it through the UNO page styles.
-func (o *Office) applyGeometry(landscape bool, width, height int) error {
+// prepareDocument runs the preparation macro to apply page geometry and, when
+// requested, refresh document indexes on the currently loaded document.
+// landscape sets the orientation. width and height are in 1/100 mm; 0 keeps the
+// document's current size. These changes are not reachable through a UNO
+// dispatch in headless LibreOfficeKit, so a Basic macro applies them through the
+// UNO API.
+func (o *Office) prepareDocument(landscape bool, width, height int, updateIndexes bool) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -142,25 +146,42 @@ func (o *Office) applyGeometry(landscape bool, width, height int) error {
 		land = 1
 	}
 
-	// The macro reads its parameters from the environment. Set them only for
-	// the duration of the call; this is safe because Office calls are
-	// serialized and the macro runs synchronously.
-	prev, had := os.LookupEnv(geometryEnv)
-	_ = os.Setenv(geometryEnv, fmt.Sprintf("%d,%d,%d", land, width, height))
+	indexes := "0"
+	if updateIndexes {
+		indexes = "1"
+	}
+
+	// The macro reads its parameters from the environment. Set them only for the
+	// duration of the call; this is safe because Office calls are serialized and
+	// the macro runs synchronously.
+	restoreGeom := setEnv(geometryEnv, fmt.Sprintf("%d,%d,%d", land, width, height))
+	restoreIndexes := setEnv(updateIndexesEnv, indexes)
 
 	err := o.internal.RunMacro(profile.MacroURL)
 
-	if had {
-		_ = os.Setenv(geometryEnv, prev)
-	} else {
-		_ = os.Unsetenv(geometryEnv)
-	}
+	restoreIndexes()
+	restoreGeom()
 
 	if err != nil {
-		return fmt.Errorf("%w: applying geometry: %s", ErrSaveFailed, err)
+		return fmt.Errorf("%w: preparing document: %s", ErrSaveFailed, err)
 	}
 
 	return nil
+}
+
+// setEnv sets an environment variable and returns a function that restores its
+// previous value.
+func setEnv(key, value string) func() {
+	prev, had := os.LookupEnv(key)
+	_ = os.Setenv(key, value)
+
+	return func() {
+		if had {
+			_ = os.Setenv(key, prev)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	}
 }
 
 // LoadDocument opens a document at the given file path. The returned

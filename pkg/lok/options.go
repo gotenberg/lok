@@ -27,10 +27,9 @@ const (
 // Most fields map directly to UNO filter properties passed to saveAs via
 // [BuildFilterOptions]. Several fields are handled separately by the
 // conversion layer:
-//   - Landscape, PaperFormat, PaperWidth, PaperHeight: applied to the page
-//     styles by a Basic macro before export. See [Convert].
+//   - Landscape, PaperFormat, PaperWidth, PaperHeight, UpdateIndexes: applied
+//     to the document by a Basic macro before export. See [Convert].
 //   - Password, MacroExecutionMode: passed as document load options.
-//   - UpdateIndexes: applied via .uno:UpdateAllIndexes before export.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.

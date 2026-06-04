@@ -1,23 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <script:module xmlns:script="http://openoffice.org/2000/script" script:name="LokGeometry" script:language="StarBasic">
-&apos; Applies page geometry to the loaded document(s) before PDF export.
-&apos; Parameters arrive through the LOK_GEOM environment variable as
-&apos; &quot;landscape,width,height&quot;, where landscape is 0 or 1 and width/height are
-&apos; in 1/100 mm (0 means keep the current size). LibreOfficeKit cannot change a
-&apos; page style through a dispatch, so this UNO macro does it directly.
-Sub ApplyGeometry
-  Dim s, parts, bLand, nW, nH, oEnum, oDoc, oFam, oStyles, oStyle, i, tmp
-  s = Environ(&quot;LOK_GEOM&quot;)
-  If s = &quot;&quot; Then Exit Sub
-  parts = Split(s, &quot;,&quot;)
-  If UBound(parts) &lt; 2 Then Exit Sub
-  bLand = (Trim(parts(0)) = &quot;1&quot;)
-  nW = CLng(parts(1))
-  nH = CLng(parts(2))
+&apos; Prepares the loaded document(s) before PDF export. LibreOfficeKit cannot
+&apos; mutate a document through a UNO dispatch in headless mode, so this UNO macro
+&apos; does it directly. Parameters arrive through environment variables:
+&apos;   LOK_GEOM = &quot;landscape,width,height&quot; (landscape 0/1, size in 1/100 mm,
+&apos;              0 keeps the current size).
+&apos;   LOK_UPDATE_INDEXES = &quot;1&quot; refreshes fields and updates document indexes.
+Sub Prepare
+  Dim geom, doIdx, parts, bLand, nW, nH, hasGeom
+  Dim oEnum, oDoc, oFam, oStyles, oStyle, i, tmp, oIndexes, j
+  geom = Environ(&quot;LOK_GEOM&quot;)
+  doIdx = (Environ(&quot;LOK_UPDATE_INDEXES&quot;) = &quot;1&quot;)
+  hasGeom = False
+  If geom &lt;&gt; &quot;&quot; Then
+    parts = Split(geom, &quot;,&quot;)
+    If UBound(parts) &gt;= 2 Then
+      bLand = (Trim(parts(0)) = &quot;1&quot;)
+      nW = CLng(parts(1))
+      nH = CLng(parts(2))
+      hasGeom = (bLand Or (nW &gt; 0 And nH &gt; 0))
+    End If
+  End If
+  If (Not hasGeom) And (Not doIdx) Then Exit Sub
   oEnum = StarDesktop.Components.createEnumeration()
   Do While oEnum.hasMoreElements()
     oDoc = oEnum.nextElement()
-    If HasUnoInterfaces(oDoc, &quot;com.sun.star.style.XStyleFamiliesSupplier&quot;) Then
+    If hasGeom And HasUnoInterfaces(oDoc, &quot;com.sun.star.style.XStyleFamiliesSupplier&quot;) Then
       oFam = oDoc.StyleFamilies
       If oFam.hasByName(&quot;PageStyles&quot;) Then
         oStyles = oFam.getByName(&quot;PageStyles&quot;)
@@ -36,6 +44,15 @@ Sub ApplyGeometry
             End If
           End If
         Next i
+      End If
+    End If
+    If doIdx Then
+      If HasUnoInterfaces(oDoc, &quot;com.sun.star.util.XRefreshable&quot;) Then oDoc.refresh()
+      If HasUnoInterfaces(oDoc, &quot;com.sun.star.text.XDocumentIndexesSupplier&quot;) Then
+        oIndexes = oDoc.getDocumentIndexes()
+        For j = 0 To oIndexes.Count - 1
+          oIndexes.getByIndex(j).update()
+        Next j
       End If
     End If
   Loop

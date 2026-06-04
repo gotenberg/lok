@@ -23,8 +23,8 @@ import (
 //go:embed assets/LokGeometry.xba
 var moduleXBA string
 
-// MacroURL is the runMacro URL of the geometry macro.
-const MacroURL = "macro:///Standard.LokGeometry.ApplyGeometry"
+// MacroURL is the runMacro URL of the document-preparation macro.
+const MacroURL = "macro:///Standard.LokGeometry.Prepare"
 
 // Install establishes the profile at profileDir using the LibreOffice in
 // programPath, then adds the geometry macro to its Standard Basic library.
