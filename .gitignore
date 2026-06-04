@@ -1,2 +1,5 @@
 /.idea/
 /node_modules/
+
+# LibreOffice document lock files.
+.~lock.*#
