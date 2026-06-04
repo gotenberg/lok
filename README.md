@@ -103,6 +103,10 @@ if err != nil {
 }
 ```
 
+### Page geometry
+
+`Landscape`, `PaperFormat`, and `PaperWidth`/`PaperHeight` change the page styles of the document before export. LibreOfficeKit cannot do this through a UNO dispatch, so `Init` creates a private user profile, establishes it with a one-time `soffice` run, and installs a Basic macro that applies the geometry. The profile is removed by `Close`.
+
 The `Lifecycle` type automates memory trimming between conversions:
 
 ```go
