@@ -1,10 +1,7 @@
 package lok
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
-	"path/filepath"
 
 	"github.com/gotenberg/lok/pkg/lok/internal/cgo"
 )
@@ -111,83 +108,6 @@ func (d *Document) PostUnoCommand(command, arguments string) error {
 	d.internal.PostUnoCommand(command, arguments, false)
 
 	return nil
-}
-
-// ExportPDFViaUnoCommand exports the document to PDF using the
-// .uno:ExportDirectToPDF dispatch command instead of the saveAs API. This goes
-// through the print path, which respects printer descriptor properties such as
-// paper orientation. This is useful as a fallback for [SpreadsheetDocument]
-// landscape export where saveAs does not honor the page orientation set via
-// .uno:AttributePageSize.
-//
-// The dispatch is fire-and-forget: lok does not wait for the export to finish,
-// so a nil return does not guarantee the file was written. Prefer
-// [Document.SaveAs] unless the print path is specifically required.
-//
-// EXPERIMENTAL: this method may change or be removed in future versions.
-func (d *Document) ExportPDFViaUnoCommand(outputPath, filterOptions string) error {
-	if d.closed {
-		return ErrDocumentDestroyed
-	}
-
-	args, err := buildExportPDFArgs(outputPath, filterOptions)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrSaveFailed, err)
-	}
-
-	d.office.mu.Lock()
-	defer d.office.mu.Unlock()
-
-	if d.office.closed {
-		return ErrOfficeDestroyed
-	}
-
-	// Set the printer to landscape orientation via the printer descriptor.
-	// PaperOrientation 1 = landscape in the com.sun.star.view.PaperOrientation enum.
-	d.internal.PostUnoCommand(".uno:Printer",
-		`{"PaperOrientation":{"type":"long","value":1}}`, false)
-
-	d.internal.PostUnoCommand(".uno:ExportDirectToPDF", args, false)
-
-	return nil
-}
-
-// buildExportPDFArgs builds the JSON arguments for .uno:ExportDirectToPDF.
-// The output path is encoded as an absolute file URL, and filterOptions (a UNO
-// property map as produced by [BuildFilterOptions]) is wrapped as a
-// com.sun.star.beans.PropertyValue sequence under FilterData. Returns an error
-// if the path cannot be resolved or filterOptions is not valid JSON.
-func buildExportPDFArgs(outputPath, filterOptions string) (string, error) {
-	abs, err := filepath.Abs(outputPath)
-	if err != nil {
-		return "", fmt.Errorf("resolving output path: %w", err)
-	}
-
-	// .uno:ExportDirectToPDF expects a file URL; unlike saveAs, the dispatch
-	// path does not convert a plain filesystem path internally.
-	fileURL := (&url.URL{Scheme: "file", Path: abs}).String()
-
-	args := map[string]any{
-		"URL": map[string]any{"type": "string", "value": fileURL},
-	}
-
-	if filterOptions != "" {
-		if !json.Valid([]byte(filterOptions)) {
-			return "", fmt.Errorf("filter options is not valid JSON: %q", filterOptions)
-		}
-
-		args["FilterData"] = map[string]any{
-			"type":  "[]com.sun.star.beans.PropertyValue",
-			"value": json.RawMessage(filterOptions),
-		}
-	}
-
-	data, err := json.Marshal(args)
-	if err != nil {
-		return "", fmt.Errorf("marshaling export arguments: %w", err)
-	}
-
-	return string(data), nil
 }
 
 // IsClosed reports whether the document has been destroyed.

@@ -1,7 +1,6 @@
 package lok
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -33,19 +32,6 @@ func TestDocument_PostUnoCommand_AfterClose(t *testing.T) {
 	err := d.PostUnoCommand(".uno:UpdateAll", "")
 	if err == nil {
 		t.Fatal("expected error when posting UNO command after close")
-	}
-
-	if !errors.Is(err, ErrDocumentDestroyed) {
-		t.Fatalf("expected ErrDocumentDestroyed, got: %v", err)
-	}
-}
-
-func TestDocument_ExportPDFViaUnoCommand_AfterClose(t *testing.T) {
-	d := &Document{closed: true}
-
-	err := d.ExportPDFViaUnoCommand("/tmp/output.pdf", "")
-	if err == nil {
-		t.Fatal("expected error when exporting after close")
 	}
 
 	if !errors.Is(err, ErrDocumentDestroyed) {
@@ -87,53 +73,5 @@ func TestDocument_Close_AfterOfficeClose(t *testing.T) {
 
 	if !d.IsClosed() {
 		t.Fatal("expected document to be marked closed")
-	}
-}
-
-func TestBuildExportPDFArgs_FileURLAndFilterData(t *testing.T) {
-	args, err := buildExportPDFArgs("/tmp/out put.pdf", `{"PageRange":{"type":"string","value":"1-3"}}`)
-	if err != nil {
-		t.Fatalf("buildExportPDFArgs failed: %v", err)
-	}
-
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(args), &parsed); err != nil {
-		t.Fatalf("args is not valid JSON: %v\nraw: %s", err, args)
-	}
-
-	urlProp, ok := parsed["URL"].(map[string]any)
-	if !ok {
-		t.Fatal("missing URL property")
-	}
-
-	if want := "file:///tmp/out%20put.pdf"; urlProp["value"] != want {
-		t.Errorf("URL value = %v, want %s", urlProp["value"], want)
-	}
-
-	fd, ok := parsed["FilterData"].(map[string]any)
-	if !ok {
-		t.Fatal("missing FilterData property")
-	}
-
-	if fd["type"] != "[]com.sun.star.beans.PropertyValue" {
-		t.Errorf("FilterData type = %v, want []com.sun.star.beans.PropertyValue", fd["type"])
-	}
-}
-
-func TestBuildExportPDFArgs_EscapesSpecialChars(t *testing.T) {
-	args, err := buildExportPDFArgs(`/tmp/a"b\c.pdf`, "")
-	if err != nil {
-		t.Fatalf("buildExportPDFArgs failed: %v", err)
-	}
-
-	if !json.Valid([]byte(args)) {
-		t.Fatalf("args is not valid JSON: %s", args)
-	}
-}
-
-func TestBuildExportPDFArgs_InvalidFilterOptions(t *testing.T) {
-	_, err := buildExportPDFArgs("/tmp/out.pdf", "{not json")
-	if err == nil {
-		t.Fatal("expected an error for invalid filter options JSON")
 	}
 }

@@ -49,11 +49,5 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 
 	filterOptions := BuildFilterOptions(opts)
 
-	// Any value other than the experimental UNO path uses saveAs, including
-	// unrecognized ExportMethod values.
-	if opts.ExportMethod == ExportViaUnoCommand {
-		return doc.ExportPDFViaUnoCommand(outputPath, filterOptions)
-	}
-
 	return doc.SaveAs(outputPath, "pdf", filterOptions)
 }

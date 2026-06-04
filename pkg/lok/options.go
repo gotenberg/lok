@@ -6,22 +6,8 @@ import (
 	"strings"
 )
 
-// ExportMethod controls which LibreOffice API is used to produce the PDF.
-type ExportMethod int
-
-const (
-	// ExportViaSaveAs uses the LOK saveAs API. This is the standard path.
-	ExportViaSaveAs ExportMethod = 0
-
-	// ExportViaUnoCommand uses the .uno:ExportDirectToPDF dispatch command.
-	// This goes through the print path and respects printer descriptor
-	// properties such as paper orientation. Useful as a fallback for
-	// spreadsheet landscape export. EXPERIMENTAL.
-	ExportViaUnoCommand ExportMethod = 1
-)
-
 // PaperFormat represents a paper size from the com.sun.star.view.PaperFormat
-// enum used by the LibreOffice printer descriptor.
+// enum.
 type PaperFormat int
 
 const (
@@ -61,11 +47,6 @@ type Options struct {
 	// UpdateIndexes refreshes table of contents and indexes before export.
 	// Not a filter option.
 	UpdateIndexes bool
-
-	// ExportMethod selects the export API. [ExportViaSaveAs] (default) uses the
-	// LOK saveAs call. [ExportViaUnoCommand] uses .uno:ExportDirectToPDF,
-	// which goes through the print path. Not a filter option.
-	ExportMethod ExportMethod
 
 	// MacroExecutionMode controls macro execution when loading the document.
 	// 0 = never (default), 7 = always. Passed as a document load option.

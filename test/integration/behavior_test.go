@@ -205,3 +205,17 @@ func TestBehavior_CustomPaperSize(t *testing.T) {
 		t.Errorf("custom page size = %.1f x %.1f, want ~283 x 567", w, h)
 	}
 }
+
+// TestBehavior_CalcLandscape validates that landscape orientation applies to
+// spreadsheets as well, not only text documents.
+func TestBehavior_CalcLandscape(t *testing.T) {
+	input := testdataPath(t, "spreadsheet.xlsx")
+
+	opts := lok.DefaultOptions()
+	opts.Landscape = true
+	w, h := pdfPageSize(t, convertFixture(t, input, opts))
+
+	if w <= h {
+		t.Fatalf("calc landscape: expected width > height, got %.0f x %.0f", w, h)
+	}
+}
