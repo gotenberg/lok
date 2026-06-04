@@ -2,10 +2,6 @@
 
 #include <stdbool.h>
 
-LoKit* lok_bridge_init(const char* installPath) {
-    return lok_init(installPath);
-}
-
 LoKit* lok_bridge_init_2(const char* installPath,
                          const char* userProfilePath) {
     return lok_init_2(installPath, userProfilePath);
@@ -33,11 +29,6 @@ void lok_bridge_free_error(LoKit* pOffice, char* pErr) {
 char* lok_bridge_get_version_info(LoKit* pOffice) {
     if (!pOffice) return NULL;
     return pOffice->pClass->getVersionInfo(pOffice);
-}
-
-char* lok_bridge_get_filter_types(LoKit* pOffice) {
-    if (!pOffice) return NULL;
-    return pOffice->pClass->getFilterTypes(pOffice);
 }
 
 // LOK runMacro returns 0 on failure, unlike typical C convention.

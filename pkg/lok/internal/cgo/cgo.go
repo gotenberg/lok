@@ -23,19 +23,6 @@ type Document struct {
 	office *Office
 }
 
-// Init loads LibreOffice from the given install path and returns an [Office].
-func Init(installPath string) (*Office, error) {
-	cPath := C.CString(installPath)
-	defer C.free(unsafe.Pointer(cPath))
-
-	handle := C.lok_bridge_init(cPath)
-	if handle == nil {
-		return nil, errors.New("lok_bridge_init returned nil")
-	}
-
-	return &Office{handle: handle}, nil
-}
-
 // InitWithUserProfile loads LibreOffice with a custom user profile directory.
 func InitWithUserProfile(installPath, profilePath string) (*Office, error) {
 	cInstall := C.CString(installPath)
@@ -97,19 +84,6 @@ func (o *Office) GetVersionInfo() string {
 	C.lok_bridge_free_error(o.handle, cInfo)
 
 	return info
-}
-
-// GetFilterTypes returns the available document filter types as a JSON string.
-func (o *Office) GetFilterTypes() string {
-	cTypes := C.lok_bridge_get_filter_types(o.handle)
-	if cTypes == nil {
-		return ""
-	}
-
-	types := C.GoString(cTypes)
-	C.lok_bridge_free_error(o.handle, cTypes)
-
-	return types
 }
 
 // HasTrimMemory reports whether the loaded LibreOffice version supports

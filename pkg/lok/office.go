@@ -242,31 +242,6 @@ func (o *Office) GetVersionInfo() (string, error) {
 	return o.internal.GetVersionInfo(), nil
 }
 
-// GetFilterTypes returns the available document filter types as a JSON string.
-func (o *Office) GetFilterTypes() (string, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	if o.closed {
-		return "", ErrOfficeDestroyed
-	}
-
-	return o.internal.GetFilterTypes(), nil
-}
-
-// GetError retrieves the last error message from LibreOffice. Returns an
-// empty string if the office is closed or no error is available.
-func (o *Office) GetError() string {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	if o.closed {
-		return ""
-	}
-
-	return o.internal.GetError()
-}
-
 // IsClosed reports whether the office instance has been destroyed.
 func (o *Office) IsClosed() bool {
 	o.mu.Lock()

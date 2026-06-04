@@ -11,7 +11,6 @@ typedef LibreOfficeKit LoKit;
 typedef LibreOfficeKitDocument LoKitDocument;
 
 // Office lifecycle.
-LoKit* lok_bridge_init(const char* installPath);
 LoKit* lok_bridge_init_2(const char* installPath, const char* userProfilePath);
 void lok_bridge_destroy(LoKit* pOffice);
 
@@ -21,7 +20,6 @@ void lok_bridge_free_error(LoKit* pOffice, char* pErr);
 
 // Info.
 char* lok_bridge_get_version_info(LoKit* pOffice);
-char* lok_bridge_get_filter_types(LoKit* pOffice);
 
 // Scripting.
 int lok_bridge_run_macro(LoKit* pOffice, const char* pURL);
