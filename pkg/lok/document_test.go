@@ -26,19 +26,6 @@ func TestDocument_SaveAs_AfterClose(t *testing.T) {
 	}
 }
 
-func TestDocument_PostUnoCommand_AfterClose(t *testing.T) {
-	d := &Document{closed: true}
-
-	err := d.PostUnoCommand(".uno:UpdateAll", "")
-	if err == nil {
-		t.Fatal("expected error when posting UNO command after close")
-	}
-
-	if !errors.Is(err, ErrDocumentDestroyed) {
-		t.Fatalf("expected ErrDocumentDestroyed, got: %v", err)
-	}
-}
-
 func TestDocument_Type_AfterClose(t *testing.T) {
 	d := &Document{closed: true}
 

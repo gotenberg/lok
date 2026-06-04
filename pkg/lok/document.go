@@ -86,30 +86,6 @@ func (d *Document) Type() DocumentType {
 	return DocumentType(d.internal.GetType())
 }
 
-// PostUnoCommand sends a UNO command to the document. Returns
-// [ErrDocumentDestroyed] or [ErrOfficeDestroyed] if the document or office has
-// been closed.
-//
-// The dispatch is fire-and-forget: LibreOfficeKit's postUnoCommand has no
-// return value and lok does not wait for the completion callback, so a nil
-// return means the command was posted, not that it ran or succeeded.
-func (d *Document) PostUnoCommand(command, arguments string) error {
-	if d.closed {
-		return ErrDocumentDestroyed
-	}
-
-	d.office.mu.Lock()
-	defer d.office.mu.Unlock()
-
-	if d.office.closed {
-		return ErrOfficeDestroyed
-	}
-
-	d.internal.PostUnoCommand(command, arguments, false)
-
-	return nil
-}
-
 // IsClosed reports whether the document has been destroyed.
 func (d *Document) IsClosed() bool {
 	return d.closed

@@ -93,12 +93,3 @@ int lok_bridge_document_get_type(LoKitDocument* pDoc) {
     if (!pDoc) return -1;
     return pDoc->pClass->getDocumentType(pDoc);
 }
-
-void lok_bridge_document_post_uno_command(LoKitDocument* pDoc,
-                                          const char* pCommand,
-                                          const char* pArguments,
-                                          int bNotifyWhenFinished) {
-    if (!pDoc) return;
-    pDoc->pClass->postUnoCommand(pDoc, pCommand, pArguments,
-                                 (bool)bNotifyWhenFinished);
-}

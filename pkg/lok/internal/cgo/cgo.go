@@ -175,19 +175,3 @@ func (d *Document) SaveAs(path, format, filterOptions string) error {
 func (d *Document) GetType() int {
 	return int(C.lok_bridge_document_get_type(d.handle))
 }
-
-// PostUnoCommand sends a UNO command to the document.
-func (d *Document) PostUnoCommand(command, arguments string, notify bool) {
-	cCommand := C.CString(command)
-	defer C.free(unsafe.Pointer(cCommand))
-
-	cArgs := C.CString(arguments)
-	defer C.free(unsafe.Pointer(cArgs))
-
-	var cNotify C.int
-	if notify {
-		cNotify = 1
-	}
-
-	C.lok_bridge_document_post_uno_command(d.handle, cCommand, cArgs, cNotify)
-}

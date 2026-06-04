@@ -39,8 +39,5 @@ int lok_bridge_document_save_as(
     LoKitDocument* pDoc, const char* pURL,
     const char* pFormat, const char* pFilterOptions);
 int lok_bridge_document_get_type(LoKitDocument* pDoc);
-void lok_bridge_document_post_uno_command(
-    LoKitDocument* pDoc, const char* pCommand,
-    const char* pArguments, int bNotifyWhenFinished);
 
 #endif // LOK_BRIDGE_H
