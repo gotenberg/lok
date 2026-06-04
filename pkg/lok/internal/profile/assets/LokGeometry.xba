@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="LokGeometry" script:language="StarBasic">
+&apos; Applies page geometry to the loaded document(s) before PDF export.
+&apos; Parameters arrive through the LOK_GEOM environment variable as
+&apos; &quot;landscape,width,height&quot;, where landscape is 0 or 1 and width/height are
+&apos; in 1/100 mm (0 means keep the current size). LibreOfficeKit cannot change a
+&apos; page style through a dispatch, so this UNO macro does it directly.
+Sub ApplyGeometry
+  Dim s, parts, bLand, nW, nH, oEnum, oDoc, oFam, oStyles, oStyle, i, tmp
+  s = Environ(&quot;LOK_GEOM&quot;)
+  If s = &quot;&quot; Then Exit Sub
+  parts = Split(s, &quot;,&quot;)
+  If UBound(parts) &lt; 2 Then Exit Sub
+  bLand = (Trim(parts(0)) = &quot;1&quot;)
+  nW = CLng(parts(1))
+  nH = CLng(parts(2))
+  oEnum = StarDesktop.Components.createEnumeration()
+  Do While oEnum.hasMoreElements()
+    oDoc = oEnum.nextElement()
+    If HasUnoInterfaces(oDoc, &quot;com.sun.star.style.XStyleFamiliesSupplier&quot;) Then
+      oFam = oDoc.StyleFamilies
+      If oFam.hasByName(&quot;PageStyles&quot;) Then
+        oStyles = oFam.getByName(&quot;PageStyles&quot;)
+        For i = 0 To oStyles.Count - 1
+          oStyle = oStyles.getByIndex(i)
+          If oStyle.isInUse() Then
+            If nW &gt; 0 And nH &gt; 0 Then
+              oStyle.IsLandscape = bLand
+              oStyle.Width = nW
+              oStyle.Height = nH
+            ElseIf bLand Then
+              If oStyle.Width &lt; oStyle.Height Then
+                tmp = oStyle.Width : oStyle.Width = oStyle.Height : oStyle.Height = tmp
+              End If
+              oStyle.IsLandscape = True
+            End If
+          End If
+        Next i
+      End If
+    End If
+  Loop
+End Sub
+</script:module>
