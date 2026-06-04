@@ -9,11 +9,10 @@ import "fmt"
 // The conversion pipeline:
 //  1. Build load options from password and macro settings.
 //  2. Load the document.
-//  3. Apply printer descriptor properties (landscape, paper format/size)
-//     via .uno:Printer if any are set.
-//  4. Apply page style fallback for landscape if needed.
-//  5. Update indexes if requested.
-//  6. Export to PDF with filter options built from opts.
+//  3. Apply page geometry (landscape, paper format/size) to the page styles
+//     via a Basic macro if any geometry option is set.
+//  4. Update indexes if requested.
+//  5. Export to PDF with filter options built from opts.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 	loadOpts := BuildLoadOptions(opts)
 
@@ -32,22 +31,12 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 
 	defer doc.Close()
 
-	// Apply printer descriptor properties (orientation, paper format/size).
-	printerProps := BuildPrinterProps(opts)
-	if printerProps != "" {
-		err = doc.PostUnoCommand(".uno:Printer", printerProps)
-		if err != nil {
-			return fmt.Errorf("%w: printer descriptor: %s", ErrSaveFailed, err)
-		}
-	}
-
-	// The printer descriptor orientation governs the print/UNO-export path. The
-	// default saveAs path takes orientation from the page style instead, so set
-	// it via .uno:AttributePageSize as well.
-	if opts.Landscape {
-		err = doc.SetLandscape(true)
-		if err != nil {
-			return fmt.Errorf("%w: landscape: %s", ErrSaveFailed, err)
+	// Apply page geometry. LibreOfficeKit cannot change a page style through a
+	// dispatch, so a Basic macro sets orientation and size on the loaded
+	// document before export.
+	if g, needed := resolveGeometry(opts); needed {
+		if err = office.applyGeometry(g.landscape, g.width, g.height); err != nil {
+			return err
 		}
 	}
 

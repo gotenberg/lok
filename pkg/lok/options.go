@@ -41,8 +41,8 @@ const (
 // Most fields map directly to UNO filter properties passed to saveAs via
 // [BuildFilterOptions]. Several fields are handled separately by the
 // conversion layer:
-//   - Landscape, PaperFormat, PaperWidth, PaperHeight: applied via
-//     .uno:Printer (printer descriptor) before export.
+//   - Landscape, PaperFormat, PaperWidth, PaperHeight: applied to the page
+//     styles by a Basic macro before export. See [Convert].
 //   - Password, MacroExecutionMode: passed as document load options.
 //   - UpdateIndexes: applied via .uno:UpdateAllIndexes before export.
 type Options struct {
@@ -72,7 +72,7 @@ type Options struct {
 	// Not a filter option.
 	MacroExecutionMode int
 
-	// PaperFormat sets the paper format via the printer descriptor before
+	// PaperFormat sets the paper format applied to the page styles before
 	// export. Use [PaperFormatUser] with PaperWidth/PaperHeight for custom
 	// sizes. -1 means unset (default). Not a filter option.
 	PaperFormat PaperFormat
@@ -314,48 +314,61 @@ func BuildFilterOptions(opts Options) string {
 	return string(data)
 }
 
-// BuildPrinterProps builds a JSON string for .uno:Printer from [Options].
-// Returns an empty string if no printer descriptor properties are set.
-//
-// Printer descriptor properties come from com.sun.star.view.PrinterDescriptor:
-// PaperOrientation (0=portrait, 1=landscape), PaperFormat, and PaperSize.
-func BuildPrinterProps(opts Options) string {
-	props := make(map[string]filterProp)
+// geometry describes the page orientation and size to apply before export.
+// width and height are in 1/100 mm; 0 means keep the document's current size.
+type geometry struct {
+	landscape bool
+	width     int
+	height    int
+}
 
-	if opts.Landscape {
-		props["PaperOrientation"] = filterProp{Type: "long", Value: 1}
+// resolveGeometry derives the page geometry from [Options]. needed reports
+// whether any geometry change was requested. When a paper format and landscape
+// are both set, the dimensions are oriented to landscape.
+func resolveGeometry(opts Options) (g geometry, needed bool) {
+	g.landscape = opts.Landscape
+
+	if opts.PaperFormat == PaperFormatUser {
+		g.width, g.height = opts.PaperWidth, opts.PaperHeight
+	} else if opts.PaperFormat >= 0 {
+		g.width, g.height = paperFormatDimensions(opts.PaperFormat)
 	}
 
-	if opts.PaperFormat >= 0 {
-		props["PaperFormat"] = filterProp{Type: "long", Value: int(opts.PaperFormat)}
+	if g.landscape && g.width > 0 && g.height > 0 && g.width < g.height {
+		g.width, g.height = g.height, g.width
 	}
 
-	// PaperSize is a com.sun.star.awt.Size (1/100mm), only meaningful with a
-	// custom (user) paper format. It must be encoded as the structured awt.Size
-	// below, since LibreOffice silently ignores a plain "WxH" string.
-	if opts.PaperFormat == PaperFormatUser && opts.PaperWidth > 0 && opts.PaperHeight > 0 {
-		props["PaperSize"] = filterProp{
-			Type: "any",
-			Value: map[string]any{
-				"type": "com.sun.star.awt.Size",
-				"value": map[string]any{
-					"Width":  filterProp{Type: "long", Value: opts.PaperWidth},
-					"Height": filterProp{Type: "long", Value: opts.PaperHeight},
-				},
-			},
-		}
-	}
+	needed = g.landscape || (g.width > 0 && g.height > 0)
 
-	if len(props) == 0 {
-		return ""
-	}
+	return g, needed
+}
 
-	data, err := json.Marshal(props)
-	if err != nil {
-		panic(fmt.Sprintf("lok: failed to marshal printer props: %v", err))
+// paperFormatDimensions returns the width and height of a paper format in
+// 1/100 mm (portrait). It returns 0, 0 for [PaperFormatUser] or an unknown
+// format.
+func paperFormatDimensions(f PaperFormat) (width, height int) {
+	switch f {
+	case PaperFormatA3:
+		return 29700, 42000
+	case PaperFormatA4:
+		return 21000, 29700
+	case PaperFormatA5:
+		return 14800, 21000
+	case PaperFormatB4:
+		return 25000, 35300
+	case PaperFormatB5:
+		return 17600, 25000
+	case PaperFormatLetter:
+		return 21590, 27940
+	case PaperFormatLegal:
+		return 21590, 35560
+	case PaperFormatTabloid:
+		return 27940, 43180
+	case PaperFormatUser:
+		return 0, 0
+	default:
+		return 0, 0
 	}
-
-	return string(data)
 }
 
 // BuildLoadOptions builds a document load options string from [Options].

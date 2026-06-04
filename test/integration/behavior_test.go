@@ -143,54 +143,65 @@ func TestBehavior_HasTrimMemory(t *testing.T) {
 	}
 }
 
-// TestBehavior_Landscape_NotAppliedBySaveAs pins a known limitation: landscape
-// is requested via .uno:AttributePageSize, a page-style change that headless
-// LibreOfficeKit does not apply to the saveAs output. The page geometry is
-// unchanged. If a future LibreOffice honors it, SetLandscape/Convert and this
-// test must be updated.
-func TestBehavior_Landscape_NotAppliedBySaveAs(t *testing.T) {
+// TestBehavior_Landscape validates that landscape orientation rotates the page
+// so width exceeds height. document.docx is US Letter, so landscape is 792x612.
+func TestBehavior_Landscape(t *testing.T) {
 	input := testdataPath(t, "document.docx")
-
-	pw, ph := pdfPageSize(t, convertFixture(t, input, lok.DefaultOptions()))
 
 	opts := lok.DefaultOptions()
 	opts.Landscape = true
-	lw, lh := pdfPageSize(t, convertFixture(t, input, opts))
+	w, h := pdfPageSize(t, convertFixture(t, input, opts))
 
-	if lw != pw || lh != ph {
-		t.Fatalf("landscape changed geometry from %.0fx%.0f to %.0fx%.0f; it may now be honored, update the library", pw, ph, lw, lh)
+	if w <= h {
+		t.Fatalf("landscape: expected width > height, got %.0f x %.0f", w, h)
+	}
+
+	if !approxEqual(w, 792, 2) || !approxEqual(h, 612, 2) {
+		t.Errorf("landscape page size = %.1f x %.1f, want ~792 x 612", w, h)
 	}
 }
 
-// TestBehavior_PaperFormat_NotAppliedBySaveAs pins a known limitation: the
-// printer-descriptor paper format set via .uno:Printer does not affect the
-// saveAs output, so an A4 request still yields the document's native Letter size.
-func TestBehavior_PaperFormat_NotAppliedBySaveAs(t *testing.T) {
+// TestBehavior_PaperFormat validates that PaperFormat overrides the document's
+// native size: an A4 request yields A4 (595x842 pts) instead of Letter.
+func TestBehavior_PaperFormat(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
 	opts := lok.DefaultOptions()
 	opts.PaperFormat = lok.PaperFormatA4
 	w, h := pdfPageSize(t, convertFixture(t, input, opts))
 
-	// A4 would be ~595x842 pts; the output is unchanged Letter (612x792).
-	if !approxEqual(w, 612, 2) || !approxEqual(h, 792, 2) {
-		t.Fatalf("paper format now affects saveAs output (%.0fx%.0f); update the library", w, h)
+	if !approxEqual(w, 595, 2) || !approxEqual(h, 842, 2) {
+		t.Errorf("A4 page size = %.1f x %.1f, want ~595 x 842", w, h)
 	}
 }
 
-// TestBehavior_CustomPaperSize_NotAppliedBySaveAs pins the same limitation for a
-// custom (user) paper size, encoded as a com.sun.star.awt.Size on .uno:Printer.
-func TestBehavior_CustomPaperSize_NotAppliedBySaveAs(t *testing.T) {
+// TestBehavior_PaperFormatLandscape validates a paper format combined with
+// landscape orientation: A4 landscape is 842x595 pts.
+func TestBehavior_PaperFormatLandscape(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	opts := lok.DefaultOptions()
+	opts.PaperFormat = lok.PaperFormatA4
+	opts.Landscape = true
+	w, h := pdfPageSize(t, convertFixture(t, input, opts))
+
+	if !approxEqual(w, 842, 2) || !approxEqual(h, 595, 2) {
+		t.Errorf("A4 landscape size = %.1f x %.1f, want ~842 x 595", w, h)
+	}
+}
+
+// TestBehavior_CustomPaperSize validates a custom (user) paper size in 1/100 mm:
+// 100x200 mm is 283x567 pts.
+func TestBehavior_CustomPaperSize(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
 	opts := lok.DefaultOptions()
 	opts.PaperFormat = lok.PaperFormatUser
-	opts.PaperWidth = 10000  // 100mm
-	opts.PaperHeight = 20000 // 200mm
+	opts.PaperWidth = 10000  // 100 mm
+	opts.PaperHeight = 20000 // 200 mm
 	w, h := pdfPageSize(t, convertFixture(t, input, opts))
 
-	// 100x200mm would be ~283x567 pts; the output is unchanged Letter.
-	if !approxEqual(w, 612, 2) || !approxEqual(h, 792, 2) {
-		t.Fatalf("custom paper size now affects saveAs output (%.0fx%.0f); update the library", w, h)
+	if !approxEqual(w, 283, 2) || !approxEqual(h, 567, 2) {
+		t.Errorf("custom page size = %.1f x %.1f, want ~283 x 567", w, h)
 	}
 }

@@ -89,47 +89,6 @@ func (d *Document) Type() DocumentType {
 	return DocumentType(d.internal.GetType())
 }
 
-// SetLandscape sets the page orientation to landscape for non-presentation
-// documents. It sends .uno:AttributePageSize with A4 landscape dimensions
-// (297x210mm) and the IsLandscape flag. [PresentationDocument] controls slide
-// size differently, so this is a no-op for it. Returns [ErrDocumentDestroyed]
-// or [ErrOfficeDestroyed] if the document or office has been closed.
-//
-// The dispatch is fire-and-forget: a nil return means the command was posted,
-// not that LibreOffice applied it successfully.
-func (d *Document) SetLandscape(landscape bool) error {
-	if d.closed {
-		return ErrDocumentDestroyed
-	}
-
-	if !landscape {
-		return nil
-	}
-
-	d.office.mu.Lock()
-	defer d.office.mu.Unlock()
-
-	if d.office.closed {
-		return ErrOfficeDestroyed
-	}
-
-	// Presentations control slide size differently; landscape is the default.
-	if DocumentType(d.internal.GetType()) == PresentationDocument {
-		return nil
-	}
-
-	// A4 dimensions in 1/100mm, swapped for landscape orientation.
-	// Both IsLandscape and swapped Width/Height are required for Writer.
-	// TODO: A4 is hardcoded. When the caller sets a non-A4 PaperFormat or a
-	// custom PaperSize, this forces A4 landscape and conflicts with the printer
-	// descriptor. Derive the dimensions from the requested paper size.
-	args := `{"IsLandscape":{"type":"boolean","value":"true"},"Width":{"type":"long","value":"29700"},"Height":{"type":"long","value":"21000"}}`
-
-	d.internal.PostUnoCommand(".uno:AttributePageSize", args, false)
-
-	return nil
-}
-
 // PostUnoCommand sends a UNO command to the document. Returns
 // [ErrDocumentDestroyed] or [ErrOfficeDestroyed] if the document or office has
 // been closed.

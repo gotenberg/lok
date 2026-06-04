@@ -312,114 +312,74 @@ func assertProp(t *testing.T, props map[string]map[string]any, name, typ string,
 	}
 }
 
-func TestBuildPrinterProps_Empty(t *testing.T) {
-	result := BuildPrinterProps(DefaultOptions())
-	if result != "" {
-		t.Fatalf("expected empty string for defaults, got: %s", result)
+func TestResolveGeometry_None(t *testing.T) {
+	if _, needed := resolveGeometry(DefaultOptions()); needed {
+		t.Fatal("expected no geometry for default options")
 	}
 }
 
-func TestBuildPrinterProps_Landscape(t *testing.T) {
+func TestResolveGeometry_Landscape(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Landscape = true
 
-	result := BuildPrinterProps(opts)
-	props := parseFilterJSON(t, result)
+	g, needed := resolveGeometry(opts)
+	if !needed || !g.landscape {
+		t.Fatalf("expected landscape geometry, got %+v needed=%v", g, needed)
+	}
 
-	assertProp(t, props, "PaperOrientation", "long", float64(1))
-
-	if len(props) != 1 {
-		t.Fatalf("expected 1 property, got %d: %s", len(props), result)
+	if g.width != 0 || g.height != 0 {
+		t.Errorf("expected no explicit size, got %dx%d", g.width, g.height)
 	}
 }
 
-func TestBuildPrinterProps_PaperFormat(t *testing.T) {
+func TestResolveGeometry_PaperFormat(t *testing.T) {
 	opts := DefaultOptions()
-	opts.PaperFormat = PaperFormatA3
+	opts.PaperFormat = PaperFormatA4
 
-	result := BuildPrinterProps(opts)
-	props := parseFilterJSON(t, result)
+	g, needed := resolveGeometry(opts)
+	if !needed {
+		t.Fatal("expected geometry for A4")
+	}
 
-	assertProp(t, props, "PaperFormat", "long", float64(0))
+	if g.width != 21000 || g.height != 29700 {
+		t.Errorf("A4 portrait = %dx%d, want 21000x29700", g.width, g.height)
+	}
+
+	if g.landscape {
+		t.Error("expected portrait orientation")
+	}
 }
 
-func TestBuildPrinterProps_CustomSize(t *testing.T) {
+func TestResolveGeometry_PaperFormatLandscape(t *testing.T) {
+	opts := DefaultOptions()
+	opts.PaperFormat = PaperFormatA4
+	opts.Landscape = true
+
+	g, _ := resolveGeometry(opts)
+	if g.width != 29700 || g.height != 21000 {
+		t.Errorf("A4 landscape = %dx%d, want 29700x21000", g.width, g.height)
+	}
+}
+
+func TestResolveGeometry_CustomSize(t *testing.T) {
 	opts := DefaultOptions()
 	opts.PaperFormat = PaperFormatUser
-	opts.PaperWidth = 21000
-	opts.PaperHeight = 29700
+	opts.PaperWidth = 10000
+	opts.PaperHeight = 20000
 
-	result := BuildPrinterProps(opts)
-	props := parseFilterJSON(t, result)
-
-	assertProp(t, props, "PaperFormat", "long", float64(8))
-
-	paperSize, ok := props["PaperSize"]
-	if !ok {
-		t.Fatal("missing PaperSize property")
-	}
-
-	if paperSize["type"] != "any" {
-		t.Errorf("PaperSize type = %v, want any", paperSize["type"])
-	}
-
-	size, ok := paperSize["value"].(map[string]any)
-	if !ok {
-		t.Fatalf("PaperSize value is not an object: %T", paperSize["value"])
-	}
-
-	if size["type"] != "com.sun.star.awt.Size" {
-		t.Errorf("PaperSize value type = %v, want com.sun.star.awt.Size", size["type"])
-	}
-
-	dims, ok := size["value"].(map[string]any)
-	if !ok {
-		t.Fatalf("awt.Size value is not an object: %T", size["value"])
-	}
-
-	for name, want := range map[string]float64{"Width": 21000, "Height": 29700} {
-		field, ok := dims[name].(map[string]any)
-		if !ok {
-			t.Fatalf("%s is not an object: %T", name, dims[name])
-		}
-
-		if field["type"] != "long" {
-			t.Errorf("%s type = %v, want long", name, field["type"])
-		}
-
-		if field["value"] != want {
-			t.Errorf("%s value = %v, want %v", name, field["value"], want)
-		}
+	g, needed := resolveGeometry(opts)
+	if !needed || g.width != 10000 || g.height != 20000 {
+		t.Errorf("custom = %dx%d needed=%v, want 10000x20000", g.width, g.height, needed)
 	}
 }
 
-func TestBuildPrinterProps_CustomSizeRequiresUserFormat(t *testing.T) {
-	opts := DefaultOptions()
-	opts.PaperFormat = PaperFormatA4
-	opts.PaperWidth = 21000
-	opts.PaperHeight = 29700
-
-	result := BuildPrinterProps(opts)
-	props := parseFilterJSON(t, result)
-
-	if _, ok := props["PaperSize"]; ok {
-		t.Error("PaperSize must not be emitted unless PaperFormat is PaperFormatUser")
+func TestPaperFormatDimensions(t *testing.T) {
+	if w, h := paperFormatDimensions(PaperFormatLetter); w != 21590 || h != 27940 {
+		t.Errorf("Letter = %dx%d, want 21590x27940", w, h)
 	}
-}
 
-func TestBuildPrinterProps_LandscapeAndFormat(t *testing.T) {
-	opts := DefaultOptions()
-	opts.Landscape = true
-	opts.PaperFormat = PaperFormatA4
-
-	result := BuildPrinterProps(opts)
-	props := parseFilterJSON(t, result)
-
-	assertProp(t, props, "PaperOrientation", "long", float64(1))
-	assertProp(t, props, "PaperFormat", "long", float64(1))
-
-	if len(props) != 2 {
-		t.Fatalf("expected 2 properties, got %d: %s", len(props), result)
+	if w, h := paperFormatDimensions(PaperFormatUser); w != 0 || h != 0 {
+		t.Errorf("User = %dx%d, want 0x0", w, h)
 	}
 }
 

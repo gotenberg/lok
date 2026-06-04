@@ -2,9 +2,13 @@ package lok
 
 import (
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/gotenberg/lok/pkg/lok/internal/cgo"
+	"github.com/gotenberg/lok/pkg/lok/internal/profile"
 )
 
 // Office wraps a LibreOfficeKit instance for document conversion.
@@ -16,40 +20,84 @@ import (
 // higher-level lock to serialize an entire sequence, for example concurrent
 // calls to [Convert] or [Lifecycle.Convert] on the same Office.
 type Office struct {
-	mu       sync.Mutex
-	internal *cgo.Office
-	closed   bool
+	mu             sync.Mutex
+	internal       *cgo.Office
+	closed         bool
+	managedProfile string
 }
+
+// geometryEnv is the environment variable the geometry macro reads.
+const geometryEnv = "LOK_GEOM"
 
 // Init loads LibreOffice from the given program directory and returns an
 // [Office] ready for document operations. The programPath must point to the
 // LibreOffice program directory (e.g., "/usr/lib/libreoffice/program").
+//
+// Init creates a private user profile and installs the geometry macro into it.
+// The profile is removed by [Office.Close].
 func Init(programPath string) (*Office, error) {
 	if programPath == "" {
 		return nil, fmt.Errorf("%w: program path must not be empty", ErrInitFailed)
 	}
 
-	internal, err := cgo.Init(programPath)
+	profileDir, err := os.MkdirTemp("", "lok-profile-")
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInitFailed, err)
+		return nil, fmt.Errorf("%w: creating profile: %s", ErrInitFailed, err)
 	}
 
-	return &Office{internal: internal}, nil
+	internal, err := initWithProfile(programPath, profileDir)
+	if err != nil {
+		_ = os.RemoveAll(profileDir)
+		return nil, err
+	}
+
+	return &Office{internal: internal, managedProfile: profileDir}, nil
 }
 
 // InitWithUserProfile loads LibreOffice with a custom user profile directory.
 // The profilePath isolates LibreOffice settings and caches per instance.
+// The geometry macro is installed into the profile. The profile is not removed
+// by [Office.Close].
 func InitWithUserProfile(programPath, profilePath string) (*Office, error) {
 	if programPath == "" {
 		return nil, fmt.Errorf("%w: program path must not be empty", ErrInitFailed)
 	}
 
-	internal, err := cgo.InitWithUserProfile(programPath, profilePath)
+	if profilePath == "" {
+		return nil, fmt.Errorf("%w: profile path must not be empty", ErrInitFailed)
+	}
+
+	internal, err := initWithProfile(programPath, profilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Office{internal: internal}, nil
+}
+
+// initWithProfile installs the geometry macro into profileDir and initializes
+// LibreOffice against it.
+func initWithProfile(programPath, profileDir string) (*cgo.Office, error) {
+	if err := profile.Install(programPath, profileDir); err != nil {
+		return nil, fmt.Errorf("%w: installing macro: %s", ErrInitFailed, err)
+	}
+
+	internal, err := cgo.InitWithUserProfile(programPath, fileURL(profileDir))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInitFailed, err)
 	}
 
-	return &Office{internal: internal}, nil
+	return internal, nil
+}
+
+// fileURL converts a filesystem path to a file URL for LibreOfficeKit.
+func fileURL(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+
+	return (&url.URL{Scheme: "file", Path: abs}).String()
 }
 
 // Close destroys the LibreOfficeKit instance and releases resources.
@@ -70,6 +118,49 @@ func (o *Office) Close() {
 
 	o.internal.Destroy()
 	o.closed = true
+
+	if o.managedProfile != "" {
+		_ = os.RemoveAll(o.managedProfile)
+	}
+}
+
+// applyGeometry runs the geometry macro to set page orientation and size on the
+// currently loaded document. landscape sets the orientation. width and height
+// are in 1/100 mm; 0 keeps the document's current size. A page-geometry change
+// is not reachable through a UNO dispatch in headless LibreOfficeKit, so a Basic
+// macro applies it through the UNO page styles.
+func (o *Office) applyGeometry(landscape bool, width, height int) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return ErrOfficeDestroyed
+	}
+
+	land := 0
+	if landscape {
+		land = 1
+	}
+
+	// The macro reads its parameters from the environment. Set them only for
+	// the duration of the call; this is safe because Office calls are
+	// serialized and the macro runs synchronously.
+	prev, had := os.LookupEnv(geometryEnv)
+	_ = os.Setenv(geometryEnv, fmt.Sprintf("%d,%d,%d", land, width, height))
+
+	err := o.internal.RunMacro(profile.MacroURL)
+
+	if had {
+		_ = os.Setenv(geometryEnv, prev)
+	} else {
+		_ = os.Unsetenv(geometryEnv)
+	}
+
+	if err != nil {
+		return fmt.Errorf("%w: applying geometry: %s", ErrSaveFailed, err)
+	}
+
+	return nil
 }
 
 // LoadDocument opens a document at the given file path. The returned
