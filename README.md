@@ -44,7 +44,7 @@ lok \
   --page-ranges "1-3"
 ```
 
-Run `lok --help` for the full list of flags (printer descriptor, PDF export filter, viewer preferences).
+Run `lok --help` for the full list of flags (page geometry, PDF export filter, viewer preferences).
 
 ### Long-running mode
 
