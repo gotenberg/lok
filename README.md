@@ -79,7 +79,7 @@ The `cmd/lok` binary sidesteps all of these: the caller spawns it as a subproces
 
 ## Library usage
 
-For cases where direct embedding is acceptable (short-lived processes, controlled environments):
+When embedding directly is acceptable (short-lived or controlled processes; otherwise prefer the CLI):
 
 ```go
 import "github.com/gotenberg/lok/pkg/lok"
@@ -88,28 +88,21 @@ office, err := lok.Init("/usr/lib/libreoffice/program")
 if err != nil {
     log.Fatal(err)
 }
-// Do not call office.Close(): LibreOffice's destroy() can crash the Go runtime
-// during shutdown (it installs signal handlers without SA_ONSTACK). For a
-// short-lived process, let process exit reclaim resources. If you must call
-// Close, run with GODEBUG=asyncpreemptoff=1.
 
 opts := lok.DefaultOptions()
 opts.Landscape = true
 opts.Quality = 50
 
-err = lok.Convert(office, "input.docx", "output.pdf", opts)
-if err != nil {
+if err := lok.Convert(office, "input.docx", "output.pdf", opts); err != nil {
     log.Fatal(err)
 }
 ```
 
-### Page geometry
-
-`Landscape`, `PaperFormat`, and `PaperWidth`/`PaperHeight` change the page styles of the document before export. LibreOfficeKit cannot do this through a UNO dispatch, so `Init` creates a private user profile, establishes it with a one-time `soffice` run, and installs a Basic macro that applies the geometry. The profile is removed by `Close`.
+`Options` configures the export: page orientation and paper size, page ranges, PDF/A conformance, image quality, watermark, and viewer preferences. `DefaultOptions` matches LibreOffice's own defaults.
 
 ### Lifecycle
 
-The `Lifecycle` type automates memory trimming between conversions:
+`Lifecycle` reuses one `Office` across conversions and trims LibreOffice's leaked memory on a schedule:
 
 ```go
 lc, err := lok.NewLifecycle(lok.LifecycleConfig{
@@ -119,11 +112,14 @@ lc, err := lok.NewLifecycle(lok.LifecycleConfig{
 if err != nil {
     log.Fatal(err)
 }
-// As with office.Close(), avoid lc.Close() unless running with
-// GODEBUG=asyncpreemptoff=1; prefer letting process exit reclaim resources.
 
 err = lc.Convert("input.docx", "output.pdf", lok.DefaultOptions())
 ```
+
+### Notes
+
+- **Closing is optional, and usually best skipped.** LibreOffice's `destroy()` can crash the Go runtime during shutdown (it installs signal handlers without `SA_ONSTACK`). Prefer letting process exit reclaim resources; if you must call `Close` or `Lifecycle.Close`, run with `GODEBUG=asyncpreemptoff=1`.
+- **Page geometry uses a macro.** `Landscape`, `PaperFormat`, and `PaperWidth`/`PaperHeight` change the document's page styles, which LibreOfficeKit cannot do through a UNO dispatch. `Init` creates a private user profile, establishes it with a one-time `soffice` run, installs a Basic macro, and removes the profile on `Close`.
 
 ## Contributing
 
