@@ -230,3 +230,32 @@ func TestBehavior_UpdateIndexes(t *testing.T) {
 
 	convertFixture(t, input, opts)
 }
+
+// TestBehavior_OptionsApplyPerConversion validates that Options take effect on
+// every conversion independently on a reused Office: geometry from one Convert
+// does not leak into the next, and a repeated option keeps working.
+func TestBehavior_OptionsApplyPerConversion(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	landscape := lok.DefaultOptions()
+	landscape.Landscape = true
+
+	steps := []struct {
+		name     string
+		opts     lok.Options
+		wantWide bool
+	}{
+		{"portrait", lok.DefaultOptions(), false},
+		{"landscape", landscape, true},
+		{"portrait again", lok.DefaultOptions(), false},
+		{"landscape again", landscape, true},
+	}
+
+	for _, s := range steps {
+		w, h := pdfPageSize(t, convertFixture(t, input, s.opts))
+
+		if wide := w > h; wide != s.wantWide {
+			t.Errorf("%s: got %.0f x %.0f (wide=%v), want wide=%v", s.name, w, h, wide, s.wantWide)
+		}
+	}
+}
