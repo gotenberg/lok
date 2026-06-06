@@ -100,6 +100,12 @@ if err := lok.Convert(office, "input.docx", "output.pdf", opts); err != nil {
 
 `Options` configures the export: page orientation and paper size, page ranges, PDF/A conformance, image quality, watermark, and viewer preferences. `DefaultOptions` matches LibreOffice's own defaults.
 
+> [!WARNING]
+> Calling `Close` (or `Lifecycle.Close`) is optional and usually best skipped: LibreOffice's `destroy()` can crash the Go runtime on shutdown (it installs signal handlers without `SA_ONSTACK`). Prefer letting process exit reclaim resources, or run with `GODEBUG=asyncpreemptoff=1`.
+
+> [!NOTE]
+> Page geometry (`Landscape`, `PaperFormat`, `PaperWidth`/`PaperHeight`) is applied by a Basic macro, which LibreOfficeKit cannot do through a UNO dispatch. `Init` creates a private user profile, establishes it with a one-time `soffice` run, installs the macro, and removes the profile on `Close`.
+
 ### Lifecycle
 
 `Lifecycle` reuses one `Office` across conversions and trims LibreOffice's leaked memory on a schedule:
@@ -115,12 +121,6 @@ if err != nil {
 
 err = lc.Convert("input.docx", "output.pdf", lok.DefaultOptions())
 ```
-
-> [!WARNING]
-> Calling `Close` (or `Lifecycle.Close`) is optional and usually best skipped: LibreOffice's `destroy()` can crash the Go runtime on shutdown (it installs signal handlers without `SA_ONSTACK`). Prefer letting process exit reclaim resources, or run with `GODEBUG=asyncpreemptoff=1`.
-
-> [!NOTE]
-> Page geometry (`Landscape`, `PaperFormat`, `PaperWidth`/`PaperHeight`) is applied by a Basic macro, which LibreOfficeKit cannot do through a UNO dispatch. `Init` creates a private user profile, establishes it with a one-time `soffice` run, installs the macro, and removes the profile on `Close`.
 
 ## Contributing
 
