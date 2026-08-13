@@ -220,6 +220,24 @@ func TestBehavior_CalcLandscape(t *testing.T) {
 	}
 }
 
+// TestBehavior_SinglePageSheetsScrolled validates that a workbook saved scrolled
+// away from the top-left cell still renders in full with SinglePageSheets. The
+// fixture is saved scrolled to row 37; without the topLeftCell reset the page
+// would start there and drop the header, so the "Meteor" column header only
+// appears when the whole sheet is rendered.
+// See https://github.com/gotenberg/gotenberg/issues/1222.
+func TestBehavior_SinglePageSheetsScrolled(t *testing.T) {
+	input := testdataPath(t, "spreadsheet-scrolled.xlsx")
+
+	opts := lok.DefaultOptions()
+	opts.SinglePageSheets = true
+
+	text := pdfText(t, convertFixture(t, input, opts))
+	if !strings.Contains(text, "Meteor") {
+		t.Fatalf("SinglePageSheets dropped the header rows: %q not found in the rendered PDF", "Meteor")
+	}
+}
+
 // TestBehavior_UpdateIndexes validates that the index-refresh path runs through
 // the preparation macro and produces a valid PDF.
 func TestBehavior_UpdateIndexes(t *testing.T) {

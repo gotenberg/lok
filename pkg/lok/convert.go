@@ -1,5 +1,7 @@
 package lok
 
+import "os"
+
 // Convert loads a document, applies [Options], and exports to PDF. The office
 // must be initialized via [Init]. The caller is responsible for serializing
 // calls to Convert if needed (e.g., via an external queue or supervisor).
@@ -12,6 +14,18 @@ package lok
 //     dispatch in headless mode.
 //  4. Export to PDF with filter options built from opts.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
+	// SinglePageSheets starts each sheet's single page at the workbook's saved
+	// scroll position, truncating everything above and to the left of it. Load
+	// a copy with that position reset to the top-left cell instead.
+	// See https://github.com/gotenberg/gotenberg/issues/1222.
+	if opts.SinglePageSheets {
+		sanitized := resetCalcScrollPosition(inputPath)
+		if sanitized != inputPath {
+			defer func() { _ = os.Remove(sanitized) }()
+			inputPath = sanitized
+		}
+	}
+
 	loadOpts := BuildLoadOptions(opts)
 
 	var doc *Document
