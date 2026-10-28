@@ -22,7 +22,7 @@ apt-get install -y \
   fonts-liberation
 ```
 
-- **Go 1.26+** with `CGO_ENABLED=1`
+- **Go 1.27.3+** with `CGO_ENABLED=1`
 - **gcc, libc6-dev**: C compiler and headers for CGO
 - **libreoffice-core, -writer, -calc, -impress**: LibreOffice runtime
 - **libreofficekit-dev**: C headers for the LibreOfficeKit API
@@ -124,4 +124,6 @@ err = lc.Convert("input.docx", "output.pdf", lok.DefaultOptions())
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Bug reports: [GitHub Issues](https://github.com/gotenberg/lok/issues)
+- Security vulnerabilities: [SECURITY.md](SECURITY.md)

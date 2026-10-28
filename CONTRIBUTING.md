@@ -3,23 +3,27 @@
 Go library providing CGO bindings to LibreOfficeKit for document-to-PDF conversion. Loads LibreOffice as an in-process shared library via `dlopen`. Two rules override everything else: **CGO safety** (every `C.CString` has a matching `C.free` in a defer, no dangling C pointers) and **thread safety** (LOK calls are serialized, no concurrent access to `LibreOfficeKit` or `LibreOfficeKitDocument` handles).
 
 - Module: `github.com/gotenberg/lok`
-- Go: 1.26.0+
+- Go: 1.27.3+
+- The Docker image builds golangci-lint at the version the Makefile pins, never the copy on your `PATH`.
+- Node.js (see `.node-version`), for Prettier linting
 - Docker (all build dependencies are installed in the Docker image)
 
-## Quick start
+## Setup and Makefile
 
-```bash
-make build-test       # Build the Docker image for testing
-make fmt              # Format Go code + tidy modules
-make prettify         # Prettier formatting for non-Go files
-make lint             # golangci-lint (strict)
-make lint-prettier    # Prettier check for non-Go files
-make test-unit        # Unit tests in Docker
-make test-integration # Integration tests in Docker
-make godoc            # Browse docs at http://localhost:6060
-```
+| Command                 | Purpose                                                                               | When to use             |
+| ----------------------- | ------------------------------------------------------------------------------------- | ----------------------- |
+| `make help`             | Show the available commands                                                           | To discover targets     |
+| `make build`            | Build the Docker test image. Every Go target below runs in it with the source mounted | Before manual testing   |
+| `make fmt`              | Format Go code and tidy the dependencies, in Docker                                   | Before committing       |
+| `make prettify`         | Format non-Go files (Markdown, YAML, JSON)                                            | Before committing       |
+| `make lint`             | Lint Go code in Docker (zero warnings permitted)                                      | Before committing       |
+| `make lint-prettier`    | Lint non-Go files                                                                     | Before committing       |
+| `make lint-todo`        | Find TODOs in Go code, in Docker                                                      | Before committing       |
+| `make test-unit`        | Run unit tests in Docker                                                              | Before committing       |
+| `make test-integration` | Run integration tests in Docker                                                       | Before committing       |
+| `make godoc`            | Browse the docs at `http://localhost:6060`                                            | To verify documentation |
 
-Run `make fmt && make lint` before submitting code. Run `make prettify && make lint-prettier` for non-Go files. Zero warnings policy.
+Zero warnings policy.
 
 ## Project layout
 
@@ -67,18 +71,19 @@ LibreOffice leaks memory over time (~0.5 MiB per conversion). `TrimMemory(0)` re
 
 `destroy()` + `lok_init()` does not fully reclaim memory because the shared library stays loaded (`dlopen` without `dlclose`). Container-level restarts are the nuclear fallback. The `Lifecycle` type automates trim scheduling.
 
-## Documentation rules
+## Documentation conventions
 
 ### Tone
 
 - Short, declarative sentences. Say what it does, then stop.
-- Lead with the action. "Converts the document to PDF", not "This function converts the document to PDF".
-- Active voice. "lok serializes access", not "Access is serialized by lok".
+- Lead with the action. "Validates the input", not "This function validates the input".
+- Active voice. "lok checks the input", not "The input is checked by lok".
 - No em dashes. Use a period, colon, or comma.
+- No "we" hedging. "Don't...", not "We do not recommend...".
 
 ### Godoc
 
-Every exported type and function has a Godoc comment starting with its identifier name:
+Every exported identifier has a doc comment starting with its name, and every package a `doc.go` with a `// Package foo ...` comment. Reference identifiers with `[Name]` for pkg.go.dev links. Test, fuzz, benchmark and example functions are exempt.
 
 ```go
 // Office wraps a LibreOfficeKit instance for document conversion.
@@ -88,9 +93,7 @@ type Office struct { ... }
 func Init(programPath string) (*Office, error)
 ```
 
-Each package has a `doc.go` with a `// Package foo ...` comment.
-
-Reference identifiers with `[Name]` brackets for pkg.go.dev linking:
+Example of a `[Name]` reference:
 
 ```go
 // Convert loads a document, applies [Options], and exports to PDF.
@@ -100,13 +103,13 @@ Reference identifiers with `[Name]` brackets for pkg.go.dev linking:
 ### Code comments
 
 - Explain _why_, not _what_.
-- No numbered step comments. No noise comments that restate the code.
-- Reference LibreOffice specifics where relevant (`// LOK saveAs returns 0 on failure, unlike typical C convention.`).
+- No numbered steps, no section separators, no comments that restate the code.
 - Mark debt with `// TODO: [context]`.
+- Reference LibreOffice specifics where relevant (`// LOK saveAs returns 0 on failure, unlike typical C convention.`).
 
 ## Testing
 
-All tests run inside Docker because the package requires CGO and `libreofficekit-dev` headers. Build the image first with `make build-test`.
+All tests run inside Docker because the package requires CGO and `libreofficekit-dev` headers. Build the image first with `make build`.
 
 Unit tests use `_test.go` convention in the same package. Integration tests use `//go:build integration` and live in `test/integration/` with fixtures in `test/integration/testdata/`.
 
@@ -120,13 +123,15 @@ Plan non-trivial changes before coding. Present the problem, approach, affected 
 - [ ] All errors wrapped and propagated; no silenced errors without justification
 - [ ] Every `C.CString` has a matching `C.free` in a defer; no dangling C pointers
 - [ ] LOK calls are serialized; no concurrent access to handles
-- [ ] Linting: `make fmt && make lint` passes with zero warnings
+- [ ] Linting: `make fmt && make lint && make prettify && make lint-prettier` pass with zero warnings
 - [ ] No dead code, no commented-out code, no TODO without context
 - [ ] Public types and functions have Godoc comments
 - [ ] New behavior is covered; no regressions
 
 ### Commits
 
-[Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
+[Conventional Commits](https://www.conventionalcommits.org/), title only: `<type>(<scope>): <description>`. No body, no trailers (no `Co-Authored-By`, no `Signed-off-by`).
+
+Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope names the area of the change.
 
 Stage specific files. Never `git add -A` or `git add .`.
