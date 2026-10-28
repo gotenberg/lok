@@ -9,11 +9,12 @@ import (
 // Document wraps a LibreOfficeKit document handle for format conversion and
 // manipulation. Close the document when no longer needed to release resources.
 //
-// A Document is not safe for concurrent use by multiple goroutines. Its CGO
-// calls are serialized against the parent [Office] through the same mutex, so a
-// Document call and an Office call never run concurrently against the shared
-// LibreOfficeKit instance. Serializing calls on a single Document is the
-// caller's responsibility.
+// Every Document call runs under the parent [Office] mutex, so Document and
+// Office calls never run concurrently against the shared LibreOfficeKit
+// instance, and a concurrent [Document.Close] makes other calls return
+// [ErrDocumentDestroyed] rather than use a freed handle. A sequence of calls
+// (load, save, close) is not atomic: serializing it is the caller's
+// responsibility.
 type Document struct {
 	internal *cgo.Document
 	office   *Office
@@ -23,14 +24,11 @@ type Document struct {
 // Close destroys the document handle and releases resources.
 // Close is idempotent: calling it more than once has no effect.
 func (d *Document) Close() {
-	if d.closed {
-		return
-	}
-
 	d.office.mu.Lock()
 	defer d.office.mu.Unlock()
 
-	// Re-check under the lock so concurrent Close calls cannot double-free.
+	// closed is read under the lock so a Close racing another call can never
+	// free the handle that call is about to use.
 	if d.closed {
 		return
 	}
@@ -49,12 +47,12 @@ func (d *Document) Close() {
 // [ErrOfficeDestroyed] if the office has been closed, or [ErrSaveFailed] if the
 // export fails.
 func (d *Document) SaveAs(path, format, filterOptions string) error {
+	d.office.mu.Lock()
+	defer d.office.mu.Unlock()
+
 	if d.closed {
 		return ErrDocumentDestroyed
 	}
-
-	d.office.mu.Lock()
-	defer d.office.mu.Unlock()
 
 	if d.office.closed {
 		return ErrOfficeDestroyed
@@ -62,7 +60,7 @@ func (d *Document) SaveAs(path, format, filterOptions string) error {
 
 	err := d.internal.SaveAs(path, format, filterOptions)
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrSaveFailed, err)
+		return fmt.Errorf("%w: %w", ErrSaveFailed, err)
 	}
 
 	return nil
@@ -72,12 +70,12 @@ func (d *Document) SaveAs(path, format, filterOptions string) error {
 // type (one where [DocumentType.IsValid] reports false) if the document or
 // office has been closed.
 func (d *Document) Type() DocumentType {
+	d.office.mu.Lock()
+	defer d.office.mu.Unlock()
+
 	if d.closed {
 		return DocumentType(-1)
 	}
-
-	d.office.mu.Lock()
-	defer d.office.mu.Unlock()
 
 	if d.office.closed {
 		return DocumentType(-1)
@@ -88,5 +86,8 @@ func (d *Document) Type() DocumentType {
 
 // IsClosed reports whether the document has been destroyed.
 func (d *Document) IsClosed() bool {
+	d.office.mu.Lock()
+	defer d.office.mu.Unlock()
+
 	return d.closed
 }

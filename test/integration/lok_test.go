@@ -4,9 +4,11 @@ package integration
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gotenberg/lok/pkg/lok"
@@ -14,7 +16,7 @@ import (
 
 // sharedOffice is a single LibreOfficeKit instance shared across all
 // integration tests. LibreOffice initialization and destruction are slow,
-// so we reuse one instance via TestMain.
+// so TestMain reuses one instance.
 var sharedOffice *lok.Office
 
 func TestMain(m *testing.M) {
@@ -282,4 +284,50 @@ func TestConvert_WithPageRanges(t *testing.T) {
 	}
 
 	assertValidPDF(t, outPath)
+}
+
+// TestDocument_CloseRacesOtherCalls validates that a Close racing SaveAs, Type
+// and IsClosed never lets those calls reach the freed handle: each either
+// completes or reports the document as destroyed. Run it under -race.
+func TestDocument_CloseRacesOtherCalls(t *testing.T) {
+	inputPath := testdataPath(t, "document.docx")
+
+	doc, err := sharedOffice.LoadDocument(inputPath)
+	if err != nil {
+		t.Fatalf("LoadDocument failed: %v", err)
+	}
+
+	outDir := t.TempDir()
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 4)
+
+	for i := range 4 {
+		wg.Go(func() {
+			outPath := filepath.Join(outDir, fmt.Sprintf("output-%d.pdf", i))
+			err := doc.SaveAs(outPath, "pdf", "")
+			if err != nil && !errors.Is(err, lok.ErrDocumentDestroyed) {
+				errs <- err
+			}
+			_ = doc.Type()
+			_ = doc.IsClosed()
+		})
+	}
+	wg.Go(doc.Close)
+
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("SaveAs racing Close: %v", err)
+	}
+
+	if !doc.IsClosed() {
+		t.Fatal("IsClosed() = false after Close")
+	}
+
+	err = doc.SaveAs(filepath.Join(outDir, "after-close.pdf"), "pdf", "")
+	if !errors.Is(err, lok.ErrDocumentDestroyed) {
+		t.Errorf("SaveAs after Close = %v, want ErrDocumentDestroyed", err)
+	}
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func TestDocument_Close_Idempotent(t *testing.T) {
-	d := &Document{closed: true}
+	d := &Document{office: &Office{}, closed: true}
 
 	// Calling Close on an already-closed document must not panic.
 	d.Close()
@@ -14,7 +14,7 @@ func TestDocument_Close_Idempotent(t *testing.T) {
 }
 
 func TestDocument_SaveAs_AfterClose(t *testing.T) {
-	d := &Document{closed: true}
+	d := &Document{office: &Office{}, closed: true}
 
 	err := d.SaveAs("output.pdf", "pdf", "")
 	if err == nil {
@@ -27,7 +27,7 @@ func TestDocument_SaveAs_AfterClose(t *testing.T) {
 }
 
 func TestDocument_Type_AfterClose(t *testing.T) {
-	d := &Document{closed: true}
+	d := &Document{office: &Office{}, closed: true}
 
 	if d.Type().IsValid() {
 		t.Fatal("Type() on a closed document must report an invalid type")
