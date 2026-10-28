@@ -99,5 +99,5 @@ func registerModule(scriptXLB string) error {
 
 	merged := content[:idx] + ` <library:element library:name="LokGeometry"/>` + "\n" + content[idx:]
 
-	return os.WriteFile(scriptXLB, []byte(merged), 0o600)
+	return os.WriteFile(scriptXLB, []byte(merged), 0o600) //nolint:gosec // scriptXLB is inside the private profile directory Init creates, not a caller-controlled path
 }

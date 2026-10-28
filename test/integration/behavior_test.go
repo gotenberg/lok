@@ -78,8 +78,6 @@ func TestBehavior_DefaultPageSize(t *testing.T) {
 // TestBehavior_PDFAConformance validates that PDFVersion produces a PDF that
 // veraPDF certifies as conformant with the corresponding PDF/A flavour.
 //
-// PDF/A-1b (PDFVersion 1) is covered separately: LibreOffice 25.2 emits a
-// CreationDate that does not match the XMP xmp:CreateDate, which veraPDF rejects.
 func TestBehavior_PDFAConformance(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
@@ -87,6 +85,7 @@ func TestBehavior_PDFAConformance(t *testing.T) {
 		version int
 		flavour string
 	}{
+		{1, "1b"},
 		{2, "2b"},
 		{3, "3b"},
 	}
@@ -97,28 +96,6 @@ func TestBehavior_PDFAConformance(t *testing.T) {
 
 		out := convertFixture(t, input, opts)
 		assertPDFACompliant(t, out, c.flavour)
-	}
-}
-
-// TestBehavior_PDFA1b_KnownCreationDateMismatch pins a known limitation: the
-// LibreOffice 25.2 PDF/A-1b export fails veraPDF clause 6.7.3 because the
-// document information CreationDate and the XMP xmp:CreateDate differ. If a
-// future LibreOffice fixes this, switch PDF/A-1b into the conformance table.
-func TestBehavior_PDFA1b_KnownCreationDateMismatch(t *testing.T) {
-	input := testdataPath(t, "document.docx")
-
-	opts := lok.DefaultOptions()
-	opts.PDFVersion = 1
-
-	out := convertFixture(t, input, opts)
-	report := verapdfReport(t, out, "1b")
-
-	if !strings.Contains(report, `isCompliant="false"`) {
-		t.Fatalf("PDF/A-1b is now compliant; move it into TestBehavior_PDFAConformance:\n%s", report)
-	}
-
-	if !strings.Contains(report, `clause="6.7.3"`) {
-		t.Errorf("expected the known clause 6.7.3 (CreationDate) failure, got:\n%s", report)
 	}
 }
 
@@ -136,10 +113,10 @@ func TestBehavior_DefaultIsNotPDFA(t *testing.T) {
 }
 
 // TestBehavior_HasTrimMemory validates that the trimMemory API is available on
-// the test image (LibreOffice 25.2, built with -DLOK_HAS_TRIM_MEMORY).
+// the test image (LibreOffice from trixie-backports, built with -DLOK_HAS_TRIM_MEMORY).
 func TestBehavior_HasTrimMemory(t *testing.T) {
 	if !sharedOffice.HasTrimMemory() {
-		t.Fatal("expected trimMemory support on LibreOffice 25.2; check -DLOK_HAS_TRIM_MEMORY in the build")
+		t.Fatal("expected trimMemory support on the test image LibreOffice; check -DLOK_HAS_TRIM_MEMORY in the build")
 	}
 }
 
@@ -224,7 +201,8 @@ func TestBehavior_CalcLandscape(t *testing.T) {
 // away from the top-left cell still renders in full with SinglePageSheets. The
 // fixture is saved scrolled to row 37; without the topLeftCell reset the page
 // would start there and drop the header, so the "Meteor" column header only
-// appears when the whole sheet is rendered.
+// appears when the whole sheet is rendered. pdftotext splits some words of the
+// LibreOffice 26.8 export ("Met eor"), so the match ignores spaces.
 // See https://github.com/gotenberg/gotenberg/issues/1222.
 func TestBehavior_SinglePageSheetsScrolled(t *testing.T) {
 	input := testdataPath(t, "spreadsheet-scrolled.xlsx")
@@ -232,7 +210,7 @@ func TestBehavior_SinglePageSheetsScrolled(t *testing.T) {
 	opts := lok.DefaultOptions()
 	opts.SinglePageSheets = true
 
-	text := pdfText(t, convertFixture(t, input, opts))
+	text := strings.ReplaceAll(pdfText(t, convertFixture(t, input, opts)), " ", "")
 	if !strings.Contains(text, "Meteor") {
 		t.Fatalf("SinglePageSheets dropped the header rows: %q not found in the rendered PDF", "Meteor")
 	}

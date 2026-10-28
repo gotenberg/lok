@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -55,10 +56,8 @@ func main() {
 func ensureAsyncPreemptOff() {
 	const want = "asyncpreemptoff=1"
 
-	for _, entry := range strings.Split(os.Getenv("GODEBUG"), ",") {
-		if entry == want {
-			return
-		}
+	if slices.Contains(strings.Split(os.Getenv("GODEBUG"), ","), want) {
+		return
 	}
 
 	exe, err := os.Executable()
