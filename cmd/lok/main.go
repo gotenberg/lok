@@ -1,15 +1,3 @@
-// lok converts documents to PDF using LibreOfficeKit.
-//
-// Single-shot mode (default):
-//
-//	lok --input-path input.docx --output-path output.pdf
-//
-// Long-running mode:
-//
-//	lok --long-running --libreoffice-program-path /usr/lib/libreoffice/program
-//
-// In long-running mode, lok reads JSON requests from stdin (one per line)
-// and writes JSON responses to stdout, reusing a single LibreOffice instance.
 package main
 
 import (
@@ -300,8 +288,8 @@ func runLongRunning(opts *cliOptions) int {
 		line, readErr := reader.ReadBytes('\n')
 
 		if len(bytes.TrimSpace(line)) > 0 {
-			// An Encode error means stdout is broken; nothing actionable, so
-			// drop it and keep serving requests.
+			// An Encode error means stdout is broken, which leaves nothing to
+			// report to. Drop it and keep serving requests.
 			_ = enc.Encode(processRequest(office, line))
 		}
 

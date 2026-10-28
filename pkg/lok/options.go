@@ -11,15 +11,24 @@ import (
 type PaperFormat int
 
 const (
-	PaperFormatA3      PaperFormat = 0
-	PaperFormatA4      PaperFormat = 1
-	PaperFormatA5      PaperFormat = 2
-	PaperFormatB4      PaperFormat = 3
-	PaperFormatB5      PaperFormat = 4
-	PaperFormatLetter  PaperFormat = 5
-	PaperFormatLegal   PaperFormat = 6
+	// PaperFormatA3 selects the A3 paper size.
+	PaperFormatA3 PaperFormat = 0
+	// PaperFormatA4 selects the A4 paper size.
+	PaperFormatA4 PaperFormat = 1
+	// PaperFormatA5 selects the A5 paper size.
+	PaperFormatA5 PaperFormat = 2
+	// PaperFormatB4 selects the B4 paper size.
+	PaperFormatB4 PaperFormat = 3
+	// PaperFormatB5 selects the B5 paper size.
+	PaperFormatB5 PaperFormat = 4
+	// PaperFormatLetter selects the US Letter paper size.
+	PaperFormatLetter PaperFormat = 5
+	// PaperFormatLegal selects the US Legal paper size.
+	PaperFormatLegal PaperFormat = 6
+	// PaperFormatTabloid selects the Tabloid paper size.
 	PaperFormatTabloid PaperFormat = 7
-	PaperFormatUser    PaperFormat = 8
+	// PaperFormatUser selects a custom size set by PaperWidth and PaperHeight.
+	PaperFormatUser PaperFormat = 8
 )
 
 // Options configures PDF export behavior for LibreOffice document conversion.

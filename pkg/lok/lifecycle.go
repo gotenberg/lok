@@ -93,7 +93,7 @@ func (lc *Lifecycle) Office() *Office {
 }
 
 // Convert runs a document conversion and performs memory trimming afterward.
-// See [Convert] for the conversion pipeline details.
+// See [Convert] for the conversion details.
 //
 // Convert is not safe for concurrent use: it shares a single [Office], and a
 // conversion workflow is not atomic. Serialize calls with an external lock or a

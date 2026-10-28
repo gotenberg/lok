@@ -45,8 +45,8 @@ func TestLifecycle_TrimInterval(t *testing.T) {
 
 	// Verify the count is correct: aggressive trims would have happened at
 	// conversions 5 and 10 (i.e., when count % trimInterval == 0).
-	// We cannot directly observe TrimMemory calls on a closed office, but
-	// we verify the counter increments correctly.
+	// TrimMemory calls on a closed office are not observable, so the test
+	// only checks that the counter increments.
 }
 
 func TestLifecycle_RSS(t *testing.T) {
@@ -84,9 +84,8 @@ func TestLifecycle_DefaultConfig(t *testing.T) {
 		ProgramPath: "/nonexistent",
 	}
 
-	// NewLifecycle will fail because the path doesn't exist, but we can
-	// test the config defaults by inspecting what NewLifecycle would set.
-	// Instead, verify the zero-value behavior of GentleTrimEvery.
+	// NewLifecycle fails on a nonexistent path, so check the zero-value
+	// behavior of GentleTrimEvery directly.
 	if cfg.GentleTrimEvery != nil {
 		t.Fatal("expected nil GentleTrimEvery for zero config")
 	}

@@ -77,7 +77,6 @@ func TestBehavior_DefaultPageSize(t *testing.T) {
 
 // TestBehavior_PDFAConformance validates that PDFVersion produces a PDF that
 // veraPDF certifies as conformant with the corresponding PDF/A flavour.
-//
 func TestBehavior_PDFAConformance(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 

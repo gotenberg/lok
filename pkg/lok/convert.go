@@ -6,13 +6,11 @@ import "os"
 // must be initialized via [Init]. The caller is responsible for serializing
 // calls to Convert if needed (e.g., via an external queue or supervisor).
 //
-// The conversion pipeline:
-//  1. Build load options from password and macro settings.
-//  2. Load the document.
-//  3. Apply page geometry (landscape, paper format/size) and update indexes via
-//     a Basic macro if requested. LibreOfficeKit cannot do this through a UNO
-//     dispatch in headless mode.
-//  4. Export to PDF with filter options built from opts.
+// Convert builds load options from the password and macro settings, then
+// applies page geometry (landscape, paper format and size) and refreshes
+// indexes through a Basic macro when requested, because LibreOfficeKit cannot
+// do either through a UNO dispatch in headless mode. It exports to PDF with
+// the filter options built from opts.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 	// SinglePageSheets starts each sheet's single page at the workbook's saved
 	// scroll position, truncating everything above and to the left of it. Load
