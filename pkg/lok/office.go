@@ -45,7 +45,7 @@ func Init(programPath string) (*Office, error) {
 
 	profileDir, err := os.MkdirTemp("", "lok-profile-")
 	if err != nil {
-		return nil, fmt.Errorf("%w: creating profile: %s", ErrInitFailed, err)
+		return nil, fmt.Errorf("%w: creating profile: %w", ErrInitFailed, err)
 	}
 
 	internal, err := initWithProfile(programPath, profileDir)
@@ -82,12 +82,12 @@ func InitWithUserProfile(programPath, profilePath string) (*Office, error) {
 // LibreOffice against it.
 func initWithProfile(programPath, profileDir string) (*cgo.Office, error) {
 	if err := profile.Install(programPath, profileDir); err != nil {
-		return nil, fmt.Errorf("%w: installing macro: %s", ErrInitFailed, err)
+		return nil, fmt.Errorf("%w: installing macro: %w", ErrInitFailed, err)
 	}
 
 	internal, err := cgo.InitWithUserProfile(programPath, fileURL(profileDir))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInitFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitFailed, err)
 	}
 
 	return internal, nil
@@ -163,7 +163,7 @@ func (o *Office) prepareDocument(landscape bool, width, height int, updateIndexe
 	restoreGeom()
 
 	if err != nil {
-		return fmt.Errorf("%w: preparing document: %s", ErrSaveFailed, err)
+		return fmt.Errorf("%w: preparing document: %w", ErrSaveFailed, err)
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func (o *Office) LoadDocument(path string) (*Document, error) {
 
 	doc, err := o.internal.LoadDocument(path)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrLoadFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
 	}
 
 	return &Document{internal: doc, office: o}, nil
@@ -214,7 +214,7 @@ func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error
 
 	doc, err := o.internal.LoadDocumentWithOptions(path, options)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrLoadFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
 	}
 
 	return &Document{internal: doc, office: o}, nil
