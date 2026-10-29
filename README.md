@@ -30,6 +30,14 @@ apt-get install -y \
 
 ## CLI
 
+Prebuilt `lok` binaries for Linux (amd64, 386, arm64, armv7, ppc64le), the platforms Gotenberg ships, come with each [GitHub release](https://github.com/gotenberg/lok/releases). They need glibc 2.34+ and LibreOffice at runtime. The install script downloads one, verifies its checksum and installs it in `/usr/local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gotenberg/lok/main/install.sh | sh
+```
+
+Set `LOK_VERSION=v1.2.3` to pin a release and `LOK_INSTALL_DIR` to install elsewhere.
+
 The `cmd/lok` binary converts a single document to PDF:
 
 ```bash

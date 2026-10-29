@@ -1,0 +1,67 @@
+version: 2
+
+project_name: lok
+
+# lok needs cgo, so each target builds with a cross compiler for the platforms
+# Gotenberg ships. The release workflow runs in debian:trixie-slim, the base of
+# Gotenberg's image, so the binaries need no newer glibc than Gotenberg has.
+builds:
+  - main: ./cmd/lok
+    binary: lok
+    env:
+      - CGO_ENABLED=1
+      # trixie-backports ships a LibreOffice newer than 7.6, which provides
+      # the trimMemory API.
+      - CGO_CFLAGS=-DLOK_HAS_TRIM_MEMORY
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version=v{{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    targets:
+      - linux_amd64
+      - linux_386
+      - linux_arm64
+      - linux_arm_7
+      - linux_ppc64le
+    overrides:
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=x86_64-linux-gnu-gcc
+      - goos: linux
+        goarch: "386"
+        env:
+          - CC=i686-linux-gnu-gcc
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=aarch64-linux-gnu-gcc
+      - goos: linux
+        goarch: arm
+        goarm: "7"
+        env:
+          - CC=arm-linux-gnueabihf-gcc
+      - goos: linux
+        goarch: ppc64le
+        env:
+          - CC=powerpc64le-linux-gnu-gcc
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+# The release already exists: the workflow runs when it is published. Keep its
+# title and notes, and only attach the archives.
+release:
+  mode: keep-existing
+  extra_files:
+    - glob: ./install.sh

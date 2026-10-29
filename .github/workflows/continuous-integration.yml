@@ -117,3 +117,43 @@ jobs:
 
       - name: Run integration tests
         run: make test-integration
+
+  snapshot:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+      - test-integration
+    name: Snapshot release
+    runs-on: ubuntu-latest
+    # Same container and dependencies as the release workflow.
+    container: debian:trixie-slim
+    steps:
+      - name: Install build dependencies
+        run: |
+          echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            git \
+            gcc libc6-dev \
+            gcc-i686-linux-gnu libc6-dev-i386-cross \
+            gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
+            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+            gcc-powerpc64le-linux-gnu libc6-dev-ppc64el-cross
+          apt-get install -y --no-install-recommends -t trixie-backports libreofficekit-dev
+
+      - name: Checkout source code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.19.0
+          args: release --snapshot --clean
