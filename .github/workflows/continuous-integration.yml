@@ -147,6 +147,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The container user does not own the workspace, so git refuses it
+      # unless it is marked safe.
+      - name: Mark the workspace as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
