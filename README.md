@@ -54,6 +54,8 @@ lok \
 
 Run `lok --help` for the full list of flags (page geometry, PDF export filter, viewer preferences).
 
+By default, each run uses a private temporary LibreOffice user profile. `--user-profile-path` points LibreOffice at a directory you control instead, and lok leaves it in place on exit. Seed `<dir>/user/registrymodifications.xcu` beforehand to apply LibreOffice settings, for example a proxy or `BlockUntrustedRefererLinks`.
+
 ### Long-running mode
 
 In long-running mode, the binary keeps a single LibreOffice instance alive and reads JSON requests from stdin:

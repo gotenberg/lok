@@ -91,6 +91,9 @@ type cliOptions struct {
 	outputPath  string
 	programPath string
 
+	// Optional user profile directory, kept after exit.
+	userProfilePath string
+
 	// Long-running mode.
 	longRunning bool
 
@@ -111,6 +114,7 @@ func defineFlags() *cliOptions {
 	flag.StringVar(&opts.inputPath, "input-path", "", "Path to the input document")
 	flag.StringVar(&opts.outputPath, "output-path", "", "Path for the output PDF")
 	flag.StringVar(&opts.programPath, "libreoffice-program-path", "/usr/lib/libreoffice/program", "LibreOffice program directory")
+	flag.StringVar(&opts.userProfilePath, "user-profile-path", "", "LibreOffice user profile directory, kept on exit (default: a private temporary profile)")
 
 	// Mode.
 	flag.BoolVar(&opts.longRunning, "long-running", false, "Read JSON requests from stdin, write responses to stdout")
@@ -194,6 +198,17 @@ func defineFlags() *cliOptions {
 	return opts
 }
 
+// initOffice loads LibreOffice against the --user-profile-path directory when
+// set, so the caller can seed it with settings such as registrymodifications.xcu
+// beforehand, or against a private temporary profile otherwise.
+func initOffice(opts *cliOptions) (*lok.Office, error) {
+	if opts.userProfilePath != "" {
+		return lok.InitWithUserProfile(opts.programPath, opts.userProfilePath)
+	}
+
+	return lok.Init(opts.programPath)
+}
+
 func runOnce(opts *cliOptions) int {
 	if opts.inputPath == "" || opts.outputPath == "" {
 		fmt.Fprintln(os.Stderr, "error: --input-path and --output-path are required")
@@ -201,7 +216,7 @@ func runOnce(opts *cliOptions) int {
 		return exitError
 	}
 
-	office, err := lok.Init(opts.programPath)
+	office, err := initOffice(opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -281,7 +296,7 @@ type longRunningResponse struct {
 }
 
 func runLongRunning(opts *cliOptions) int {
-	office, err := lok.Init(opts.programPath)
+	office, err := initOffice(opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
