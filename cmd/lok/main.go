@@ -307,10 +307,42 @@ type longRunningRequest struct {
 	HideViewerWindowControls        *bool   `json:"hideViewerWindowControls,omitempty"`
 }
 
-// longRunningResponse is the JSON schema for stdout responses.
+// longRunningResponse is the JSON schema for stdout responses. Code classifies
+// a failure so callers need not parse Error.
 type longRunningResponse struct {
 	Success bool   `json:"success"`
+	Code    string `json:"code,omitempty"`
 	Error   string `json:"error,omitempty"`
+}
+
+// Failure codes of a long-running response.
+const (
+	codeInvalidRequest  = "invalid_request"
+	codeInvalidPassword = "invalid_password"
+	codeLoadFailed      = "load_failed"
+	codeSaveFailed      = "save_failed"
+	codeOfficeDestroyed = "office_destroyed"
+	codePanic           = "panic"
+	codeUnknown         = "unknown"
+)
+
+// failure builds the response for a failed conversion, most specific code
+// first: a password failure is also a load failure.
+func failure(err error) longRunningResponse {
+	code := codeUnknown
+
+	switch {
+	case errors.Is(err, lok.ErrInvalidPassword):
+		code = codeInvalidPassword
+	case errors.Is(err, lok.ErrLoadFailed):
+		code = codeLoadFailed
+	case errors.Is(err, lok.ErrSaveFailed):
+		code = codeSaveFailed
+	case errors.Is(err, lok.ErrOfficeDestroyed):
+		code = codeOfficeDestroyed
+	}
+
+	return longRunningResponse{Code: code, Error: err.Error()}
 }
 
 func runLongRunning(opts *cliOptions) int {
@@ -353,17 +385,17 @@ func runLongRunning(opts *cliOptions) int {
 func processRequest(office *lok.Office, line []byte) (resp longRunningResponse) {
 	defer func() {
 		if r := recover(); r != nil {
-			resp = longRunningResponse{Error: fmt.Sprintf("panic during conversion: %v", r)}
+			resp = longRunningResponse{Code: codePanic, Error: fmt.Sprintf("panic during conversion: %v", r)}
 		}
 	}()
 
 	var req longRunningRequest
 	if err := json.Unmarshal(line, &req); err != nil {
-		return longRunningResponse{Error: fmt.Sprintf("invalid JSON: %v", err)}
+		return longRunningResponse{Code: codeInvalidRequest, Error: fmt.Sprintf("invalid JSON: %v", err)}
 	}
 
 	if req.InputPath == "" || req.OutputPath == "" {
-		return longRunningResponse{Error: "inputPath and outputPath are required"}
+		return longRunningResponse{Code: codeInvalidRequest, Error: "inputPath and outputPath are required"}
 	}
 
 	err := lok.Convert(office, req.InputPath, req.OutputPath, buildOptsFromRequest(req))
@@ -372,7 +404,7 @@ func processRequest(office *lok.Office, line []byte) (resp longRunningResponse) 
 	office.TrimMemory(0)
 
 	if err != nil {
-		return longRunningResponse{Error: err.Error()}
+		return failure(err)
 	}
 
 	return longRunningResponse{Success: true}

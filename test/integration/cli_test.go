@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -99,4 +100,57 @@ func TestCLI_UserProfilePathKeepsSeededSettings(t *testing.T) {
 	if !strings.Contains(string(data), `oor:name="BlockUntrustedRefererLinks"`) {
 		t.Errorf("the seeded setting did not survive profile establishment:\n%s", data)
 	}
+}
+
+// TestCLI_LongRunningFailureCodes pins the code a long-running response carries
+// for each kind of failure, and that one failing request does not stop the
+// server.
+func TestCLI_LongRunningFailureCodes(t *testing.T) {
+	dir := t.TempDir()
+	input := testdataPath(t, "document.docx")
+
+	requests := strings.Join([]string{
+		`not json`,
+		`{"inputPath":"` + filepath.Join(dir, "missing.docx") + `","outputPath":"` + filepath.Join(dir, "a.pdf") + `"}`,
+		`{"inputPath":"` + input + `","outputPath":"` + filepath.Join(dir, "b.pdf") + `"}`,
+	}, "\n") + "\n"
+
+	cmd := exec.Command(cliBinary(t), "--long-running")
+	cmd.Stdin = strings.NewReader(requests)
+
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("lok --long-running failed: %v: %s", err, out)
+	}
+
+	var got []longRunningResponse
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
+		var resp longRunningResponse
+		if err := json.Unmarshal([]byte(line), &resp); err != nil {
+			t.Fatalf("response %q is not JSON: %v", line, err)
+		}
+		got = append(got, resp)
+	}
+
+	want := []longRunningResponse{
+		{Code: "invalid_request"},
+		{Code: "load_failed"},
+		{Success: true},
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d responses, want %d: %s", len(got), len(want), out)
+	}
+
+	for i := range want {
+		if got[i].Success != want[i].Success || got[i].Code != want[i].Code {
+			t.Errorf("response %d = %+v, want success=%t code=%q", i, got[i], want[i].Success, want[i].Code)
+		}
+	}
+}
+
+type longRunningResponse struct {
+	Success bool   `json:"success"`
+	Code    string `json:"code"`
+	Error   string `json:"error"`
 }

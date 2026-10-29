@@ -72,6 +72,16 @@ lok --long-running --libreoffice-program-path /usr/lib/libreoffice/program
 { "success": true }
 ```
 
+A failed request also carries a `code`, so you can branch on it without parsing `error`: `invalid_request`, `invalid_password` (LibreOffice rejected the password given for an encrypted document), `load_failed`, `save_failed`, `office_destroyed`, `panic` or `unknown`.
+
+```json
+{
+  "success": false,
+  "code": "invalid_password",
+  "error": "failed to load document: wrong document password"
+}
+```
+
 This avoids the ~1-2s `lok_init` overhead per conversion.
 
 ## Recommended usage
