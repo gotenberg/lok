@@ -207,6 +207,27 @@ func TestBuildFilterOptions_PDFVersion(t *testing.T) {
 	assertProp(t, props, "SelectPdfVersion", "long", float64(1))
 }
 
+func TestBuildFilterOptions_TaggedPdf(t *testing.T) {
+	for name, mutate := range map[string]func(*Options){
+		"TaggedPdf":          func(o *Options) { o.TaggedPdf = true },
+		"PDFUniversalAccess": func(o *Options) { o.PDFUniversalAccess = true },
+	} {
+		t.Run(name, func(t *testing.T) {
+			opts := DefaultOptions()
+			mutate(&opts)
+
+			assertProp(t, parseFilterJSON(t, BuildFilterOptions(opts)), "UseTaggedPDF", "boolean", true)
+		})
+	}
+}
+
+func TestBuildFilterOptions_EmbedStandardFonts(t *testing.T) {
+	opts := DefaultOptions()
+	opts.EmbedStandardFonts = true
+
+	assertProp(t, parseFilterJSON(t, BuildFilterOptions(opts)), "EmbedStandardFonts", "boolean", true)
+}
+
 func TestBuildFilterOptions_Watermark(t *testing.T) {
 	opts := DefaultOptions()
 	opts.NativeWatermarkText = "CONFIDENTIAL"

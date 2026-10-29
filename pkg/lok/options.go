@@ -140,13 +140,23 @@ type Options struct {
 	// MaxImageResolution sets the target DPI when ReduceImageResolution is true.
 	MaxImageResolution int
 
-	// PDFVersion selects the PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b).
-	// Maps to UNO property "SelectPdfVersion".
+	// PDFVersion selects the PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b,
+	// 3=PDF/A-3b, 4=PDF/A-4). Maps to UNO property "SelectPdfVersion".
 	PDFVersion int
 
 	// PDFUniversalAccess enables PDF/UA (Universal Accessibility) compliance.
+	// PDF/UA requires a tagged PDF, so it also turns TaggedPdf on.
 	// Maps to UNO property "PDFUACompliance".
 	PDFUniversalAccess bool
+
+	// TaggedPdf writes the document structure as PDF tags, for accessibility
+	// tools. Maps to UNO property "UseTaggedPDF".
+	TaggedPdf bool
+
+	// EmbedStandardFonts embeds the 14 standard PDF fonts instead of
+	// referencing them, as PDF/A and PDF/UA require. Maps to UNO property
+	// "EmbedStandardFonts".
+	EmbedStandardFonts bool
 
 	// NativeWatermarkText draws one watermark with the given text across the
 	// middle of each page. Maps to UNO property "Watermark".
@@ -296,6 +306,8 @@ func BuildFilterOptions(opts Options) string {
 	addBool("UseLosslessCompression", opts.LosslessImageCompression, defaults.LosslessImageCompression)
 	addBool("ReduceImageResolution", opts.ReduceImageResolution, defaults.ReduceImageResolution)
 	addBool("PDFUACompliance", opts.PDFUniversalAccess, defaults.PDFUniversalAccess)
+	addBool("UseTaggedPDF", opts.TaggedPdf || opts.PDFUniversalAccess, defaults.TaggedPdf)
+	addBool("EmbedStandardFonts", opts.EmbedStandardFonts, defaults.EmbedStandardFonts)
 	addBool("FirstPageOnLeft", opts.FirstPageOnLeft, defaults.FirstPageOnLeft)
 	addBool("ResizeWindowToInitialPage", opts.ResizeWindowToInitialPage, defaults.ResizeWindowToInitialPage)
 	addBool("CenterWindow", opts.CenterWindow, defaults.CenterWindow)

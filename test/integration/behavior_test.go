@@ -285,3 +285,27 @@ func TestBehavior_Watermarks(t *testing.T) {
 		}
 	})
 }
+
+// TestBehavior_TaggedPdf confirms TaggedPdf, and PDFUniversalAccess through it,
+// write a tagged PDF, while a default export stays untagged.
+func TestBehavior_TaggedPdf(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	if got := pdfInfo(t, convertFixture(t, input, lok.DefaultOptions()))["Tagged"]; got != "no" {
+		t.Fatalf("default export: Tagged = %q, want no", got)
+	}
+
+	tagged := lok.DefaultOptions()
+	tagged.TaggedPdf = true
+
+	ua := lok.DefaultOptions()
+	ua.PDFUniversalAccess = true
+
+	for name, opts := range map[string]lok.Options{"TaggedPdf": tagged, "PDFUniversalAccess": ua} {
+		t.Run(name, func(t *testing.T) {
+			if got := pdfInfo(t, convertFixture(t, input, opts))["Tagged"]; got != "yes" {
+				t.Fatalf("Tagged = %q, want yes", got)
+			}
+		})
+	}
+}

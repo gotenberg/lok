@@ -173,8 +173,10 @@ func defineFlags() *cliOptions {
 	flag.BoolVar(&o.AddOriginalDocumentAsStream, "add-original-document-as-stream", defaults.AddOriginalDocumentAsStream, "Embed source document")
 
 	// PDF standards.
-	flag.IntVar(&o.PDFVersion, "pdf-version", defaults.PDFVersion, "PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b)")
-	flag.BoolVar(&o.PDFUniversalAccess, "pdf-universal-access", defaults.PDFUniversalAccess, "Enable PDF/UA compliance")
+	flag.IntVar(&o.PDFVersion, "pdf-version", defaults.PDFVersion, "PDF version (0=standard, 1=PDF/A-1b, 2=PDF/A-2b, 3=PDF/A-3b, 4=PDF/A-4)")
+	flag.BoolVar(&o.PDFUniversalAccess, "pdf-universal-access", defaults.PDFUniversalAccess, "Enable PDF/UA compliance (implies --tagged-pdf)")
+	flag.BoolVar(&o.TaggedPdf, "tagged-pdf", defaults.TaggedPdf, "Write a tagged PDF")
+	flag.BoolVar(&o.EmbedStandardFonts, "embed-standard-fonts", defaults.EmbedStandardFonts, "Embed the 14 standard PDF fonts")
 
 	// Watermark.
 	flag.StringVar(&o.NativeWatermarkText, "native-watermark-text", defaults.NativeWatermarkText, "Watermark text drawn once across each page")
@@ -276,6 +278,8 @@ type longRunningRequest struct {
 	SinglePageSheets                *bool   `json:"singlePageSheets,omitempty"`
 	PDFVersion                      *int    `json:"pdfVersion,omitempty"`
 	PDFUniversalAccess              *bool   `json:"pdfUniversalAccess,omitempty"`
+	TaggedPdf                       *bool   `json:"taggedPdf,omitempty"`
+	EmbedStandardFonts              *bool   `json:"embedStandardFonts,omitempty"`
 	NativeWatermarkText             *string `json:"nativeWatermarkText,omitempty"`
 	NativeWatermarkColor            *int    `json:"nativeWatermarkColor,omitempty"`
 	NativeWatermarkFontHeight       *int    `json:"nativeWatermarkFontHeight,omitempty"`
@@ -428,6 +432,8 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 	setBool(&opts.SinglePageSheets, req.SinglePageSheets)
 	setInt(&opts.PDFVersion, req.PDFVersion)
 	setBool(&opts.PDFUniversalAccess, req.PDFUniversalAccess)
+	setBool(&opts.TaggedPdf, req.TaggedPdf)
+	setBool(&opts.EmbedStandardFonts, req.EmbedStandardFonts)
 	setString(&opts.NativeWatermarkText, req.NativeWatermarkText)
 	setInt(&opts.NativeWatermarkColor, req.NativeWatermarkColor)
 	setInt(&opts.NativeWatermarkFontHeight, req.NativeWatermarkFontHeight)
