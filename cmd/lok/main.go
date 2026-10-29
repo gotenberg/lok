@@ -27,6 +27,11 @@ func main() {
 	opts := defineFlags()
 	flag.Parse()
 
+	if opts.version {
+		fmt.Println("lok", versionString())
+		os.Exit(exitSuccess)
+	}
+
 	opts.lokOpts.PaperFormat = lok.PaperFormat(opts.paperFormat)
 
 	if opts.longRunning {
@@ -89,6 +94,9 @@ type cliOptions struct {
 	// Long-running mode.
 	longRunning bool
 
+	// Print the version and exit.
+	version bool
+
 	// Raw paper format flag (-1 = unset).
 	paperFormat int
 
@@ -106,6 +114,7 @@ func defineFlags() *cliOptions {
 
 	// Mode.
 	flag.BoolVar(&opts.longRunning, "long-running", false, "Read JSON requests from stdin, write responses to stdout")
+	flag.BoolVar(&opts.version, "version", false, "Print the lok version")
 
 	// Defaults from lok.DefaultOptions().
 	defaults := lok.DefaultOptions()
