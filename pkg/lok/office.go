@@ -30,7 +30,21 @@ type Office struct {
 const (
 	geometryEnv      = "LOK_GEOM"
 	updateIndexesEnv = "LOK_UPDATE_INDEXES"
+	calcHeaderEnv    = "LOK_DISABLE_CALC_HEADER"
+	showChangesEnv   = "LOK_SHOW_CHANGES"
 )
+
+// preparation lists the document changes the preparation macro applies before
+// export. width and height are in 1/100 mm; 0 keeps the document's current
+// size.
+type preparation struct {
+	landscape         bool
+	width             int
+	height            int
+	updateIndexes     bool
+	disableCalcHeader bool
+	showChanges       bool
+}
 
 // Init loads LibreOffice from the given program directory and returns an
 // [Office] ready for document operations. The programPath must point to the
@@ -127,13 +141,10 @@ func (o *Office) Close() {
 	}
 }
 
-// prepareDocument runs the preparation macro to apply page geometry and, when
-// requested, refresh document indexes on the currently loaded document.
-// landscape sets the orientation. width and height are in 1/100 mm; 0 keeps the
-// document's current size. These changes are not reachable through a UNO
-// dispatch in headless LibreOfficeKit, so a Basic macro applies them through the
-// UNO API.
-func (o *Office) prepareDocument(landscape bool, width, height int, updateIndexes bool) error {
+// prepareDocument runs the preparation macro on the currently loaded
+// document. These changes are not reachable through a UNO dispatch in headless
+// LibreOfficeKit, so a Basic macro applies them through the UNO API.
+func (o *Office) prepareDocument(p preparation) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -141,32 +152,36 @@ func (o *Office) prepareDocument(landscape bool, width, height int, updateIndexe
 		return ErrOfficeDestroyed
 	}
 
-	land := 0
-	if landscape {
-		land = 1
-	}
-
-	indexes := "0"
-	if updateIndexes {
-		indexes = "1"
-	}
-
 	// The macro reads its parameters from the environment. Set them only for the
 	// duration of the call; this is safe because Office calls are serialized and
 	// the macro runs synchronously.
-	restoreGeom := setEnv(geometryEnv, fmt.Sprintf("%d,%d,%d", land, width, height))
-	restoreIndexes := setEnv(updateIndexesEnv, indexes)
+	restore := []func(){
+		setEnv(geometryEnv, fmt.Sprintf("%s,%d,%d", macroFlag(p.landscape), p.width, p.height)),
+		setEnv(updateIndexesEnv, macroFlag(p.updateIndexes)),
+		setEnv(calcHeaderEnv, macroFlag(p.disableCalcHeader)),
+		setEnv(showChangesEnv, macroFlag(p.showChanges)),
+	}
 
 	err := o.internal.RunMacro(profile.MacroURL)
 
-	restoreIndexes()
-	restoreGeom()
+	for _, r := range restore {
+		r()
+	}
 
 	if err != nil {
 		return fmt.Errorf("%w: preparing document: %w", ErrSaveFailed, err)
 	}
 
 	return nil
+}
+
+// macroFlag renders a boolean as the "1" or "0" the preparation macro reads.
+func macroFlag(b bool) string {
+	if b {
+		return "1"
+	}
+
+	return "0"
 }
 
 // setEnv sets an environment variable and returns a function that restores its

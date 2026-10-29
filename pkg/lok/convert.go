@@ -7,10 +7,12 @@ import "os"
 // calls to Convert if needed (e.g., via an external queue or supervisor).
 //
 // Convert loads the document with the password and macro settings, then
-// applies page geometry (landscape, paper format and size) and refreshes
-// indexes through a Basic macro when requested, because LibreOfficeKit cannot
-// do either through a UNO dispatch in headless mode. It exports to PDF with
-// the filter options built from opts.
+// prepares it through a Basic macro, because LibreOfficeKit cannot change a
+// document through a UNO dispatch in headless mode: it hides tracked changes
+// unless [Options.ShowTrackedChanges] is set, and applies page geometry
+// (landscape, paper format and size), index refresh and the Calc header
+// suppression when requested. It exports to PDF with the filter options built
+// from opts.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 	// SinglePageSheets starts each sheet's single page at the workbook's saved
 	// scroll position, truncating everything above and to the left of it. Load
@@ -31,11 +33,18 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 
 	defer doc.Close()
 
-	g, geometryNeeded := resolveGeometry(opts)
-	if geometryNeeded || opts.UpdateIndexes {
-		if err = office.prepareDocument(g.landscape, g.width, g.height, opts.UpdateIndexes); err != nil {
-			return err
-		}
+	// The macro always runs: hiding tracked changes is the default.
+	g := resolveGeometry(opts)
+	err = office.prepareDocument(preparation{
+		landscape:         g.landscape,
+		width:             g.width,
+		height:            g.height,
+		updateIndexes:     opts.UpdateIndexes,
+		disableCalcHeader: opts.DisableCalcHeader,
+		showChanges:       opts.ShowTrackedChanges,
+	})
+	if err != nil {
+		return err
 	}
 
 	filterOptions := BuildFilterOptions(opts)

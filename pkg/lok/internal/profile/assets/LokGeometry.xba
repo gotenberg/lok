@@ -6,11 +6,15 @@
 &apos;   LOK_GEOM = &quot;landscape,width,height&quot; (landscape 0/1, size in 1/100 mm,
 &apos;              0 keeps the current size).
 &apos;   LOK_UPDATE_INDEXES = &quot;1&quot; refreshes fields and updates document indexes.
+&apos;   LOK_DISABLE_CALC_HEADER = &quot;1&quot; turns off spreadsheet page headers.
+&apos;   LOK_SHOW_CHANGES = &quot;0&quot; accepts tracked changes in text documents.
 Sub Prepare
-  Dim geom, doIdx, parts, bLand, nW, nH, hasGeom
-  Dim oEnum, oDoc, oFam, oStyles, oStyle, i, tmp, oIndexes, j
+  Dim geom, doIdx, noHeader, hideChanges, parts, bLand, nW, nH, hasGeom
+  Dim oEnum, oDoc, oFam, oStyles, oStyle, i, tmp, oIndexes, j, oDisp
   geom = Environ(&quot;LOK_GEOM&quot;)
   doIdx = (Environ(&quot;LOK_UPDATE_INDEXES&quot;) = &quot;1&quot;)
+  noHeader = (Environ(&quot;LOK_DISABLE_CALC_HEADER&quot;) = &quot;1&quot;)
+  hideChanges = (Environ(&quot;LOK_SHOW_CHANGES&quot;) = &quot;0&quot;)
   hasGeom = False
   If geom &lt;&gt; &quot;&quot; Then
     parts = Split(geom, &quot;,&quot;)
@@ -21,7 +25,7 @@ Sub Prepare
       hasGeom = (bLand Or (nW &gt; 0 And nH &gt; 0))
     End If
   End If
-  If (Not hasGeom) And (Not doIdx) Then Exit Sub
+  If (Not hasGeom) And (Not doIdx) And (Not noHeader) And (Not hideChanges) Then Exit Sub
   oEnum = StarDesktop.Components.createEnumeration()
   Do While oEnum.hasMoreElements()
     oDoc = oEnum.nextElement()
@@ -45,6 +49,18 @@ Sub Prepare
           End If
         Next i
       End If
+    End If
+    If noHeader And HasUnoInterfaces(oDoc, &quot;com.sun.star.sheet.XSpreadsheetDocument&quot;) Then
+      oStyles = oDoc.StyleFamilies.getByName(&quot;PageStyles&quot;)
+      For i = 0 To oStyles.Count - 1
+        oStyles.getByIndex(i).HeaderIsOn = False
+      Next i
+    End If
+    &apos; Setting ShowChanges to False does not reach the PDF export, so accept
+    &apos; the changes instead: the export then matches the hidden-changes view.
+    If hideChanges And HasUnoInterfaces(oDoc, &quot;com.sun.star.text.XTextDocument&quot;) Then
+      oDisp = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+      oDisp.executeDispatch(oDoc.getCurrentController().getFrame(), &quot;.uno:AcceptAllTrackedChanges&quot;, &quot;&quot;, 0, Array())
     End If
     If doIdx Then
       If HasUnoInterfaces(oDoc, &quot;com.sun.star.util.XRefreshable&quot;) Then oDoc.refresh()

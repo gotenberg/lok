@@ -136,6 +136,8 @@ func defineFlags() *cliOptions {
 
 	// Document commands.
 	flag.BoolVar(&o.UpdateIndexes, "update-indexes", false, "Rebuild TOC and indexes before export")
+	flag.BoolVar(&o.DisableCalcHeader, "disable-calc-header", false, "Turn off spreadsheet page headers (Calc prints the sheet name, a CSV's file name)")
+	flag.BoolVar(&o.ShowTrackedChanges, "show-tracked-changes", false, "Export tracked changes as marked up instead of accepted")
 
 	// Page content.
 	flag.StringVar(&o.PageRanges, "page-ranges", defaults.PageRanges, "Page ranges to export (e.g., \"1-3,5\")")
@@ -256,6 +258,8 @@ type longRunningRequest struct {
 	PaperWidth                      *int    `json:"paperWidth,omitempty"`
 	PaperHeight                     *int    `json:"paperHeight,omitempty"`
 	UpdateIndexes                   *bool   `json:"updateIndexes,omitempty"`
+	DisableCalcHeader               *bool   `json:"disableCalcHeader,omitempty"`
+	ShowTrackedChanges              *bool   `json:"showTrackedChanges,omitempty"`
 	PageRanges                      *string `json:"pageRanges,omitempty"`
 	Quality                         *int    `json:"quality,omitempty"`
 	LosslessImageCompression        *bool   `json:"losslessImageCompression,omitempty"`
@@ -408,6 +412,8 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 
 	// Document commands.
 	setBool(&opts.UpdateIndexes, req.UpdateIndexes)
+	setBool(&opts.DisableCalcHeader, req.DisableCalcHeader)
+	setBool(&opts.ShowTrackedChanges, req.ShowTrackedChanges)
 
 	// Filter options.
 	setString(&opts.PageRanges, req.PageRanges)

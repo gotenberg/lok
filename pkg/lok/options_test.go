@@ -373,8 +373,8 @@ func assertProp(t *testing.T, props map[string]map[string]any, name, typ string,
 }
 
 func TestResolveGeometry_None(t *testing.T) {
-	if _, needed := resolveGeometry(DefaultOptions()); needed {
-		t.Fatal("expected no geometry for default options")
+	if g := resolveGeometry(DefaultOptions()); g != (geometry{}) {
+		t.Fatalf("expected no geometry for default options, got %+v", g)
 	}
 }
 
@@ -382,9 +382,9 @@ func TestResolveGeometry_Landscape(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Landscape = true
 
-	g, needed := resolveGeometry(opts)
-	if !needed || !g.landscape {
-		t.Fatalf("expected landscape geometry, got %+v needed=%v", g, needed)
+	g := resolveGeometry(opts)
+	if !g.landscape {
+		t.Fatalf("expected landscape geometry, got %+v", g)
 	}
 
 	if g.width != 0 || g.height != 0 {
@@ -396,11 +396,7 @@ func TestResolveGeometry_PaperFormat(t *testing.T) {
 	opts := DefaultOptions()
 	opts.PaperFormat = PaperFormatA4
 
-	g, needed := resolveGeometry(opts)
-	if !needed {
-		t.Fatal("expected geometry for A4")
-	}
-
+	g := resolveGeometry(opts)
 	if g.width != 21000 || g.height != 29700 {
 		t.Errorf("A4 portrait = %dx%d, want 21000x29700", g.width, g.height)
 	}
@@ -415,7 +411,7 @@ func TestResolveGeometry_PaperFormatLandscape(t *testing.T) {
 	opts.PaperFormat = PaperFormatA4
 	opts.Landscape = true
 
-	g, _ := resolveGeometry(opts)
+	g := resolveGeometry(opts)
 	if g.width != 29700 || g.height != 21000 {
 		t.Errorf("A4 landscape = %dx%d, want 29700x21000", g.width, g.height)
 	}
@@ -427,9 +423,9 @@ func TestResolveGeometry_CustomSize(t *testing.T) {
 	opts.PaperWidth = 10000
 	opts.PaperHeight = 20000
 
-	g, needed := resolveGeometry(opts)
-	if !needed || g.width != 10000 || g.height != 20000 {
-		t.Errorf("custom = %dx%d needed=%v, want 10000x20000", g.width, g.height, needed)
+	g := resolveGeometry(opts)
+	if g.width != 10000 || g.height != 20000 {
+		t.Errorf("custom = %dx%d, want 10000x20000", g.width, g.height)
 	}
 }
 

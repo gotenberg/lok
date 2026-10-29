@@ -36,8 +36,9 @@ const (
 // Most fields map directly to UNO filter properties passed to saveAs via
 // [BuildFilterOptions]. Several fields are handled separately by the
 // conversion layer:
-//   - Landscape, PaperFormat, PaperWidth, PaperHeight, UpdateIndexes: applied
-//     to the document by a Basic macro before export. See [Convert].
+//   - Landscape, PaperFormat, PaperWidth, PaperHeight, UpdateIndexes,
+//     DisableCalcHeader, ShowTrackedChanges: applied to the document by a
+//     Basic macro before export. See [Convert].
 //   - Password: answers the document-password request on load.
 //   - EnableMacros: passed as document load options.
 type Options struct {
@@ -62,6 +63,17 @@ type Options struct {
 	// never run. Only enable it for trusted documents. Passed as document load
 	// options. Not a filter option.
 	EnableMacros bool
+
+	// DisableCalcHeader turns off the page header of every spreadsheet page
+	// style. Calc prints the sheet name there by default, and a plain-text
+	// import such as CSV names its only sheet after the input file, so the
+	// header leaks the file name. Not a filter option.
+	DisableCalcHeader bool
+
+	// ShowTrackedChanges exports tracked changes (insertions and deletions) as
+	// marked up. Defaults to false: the document is exported as if every
+	// change were accepted. Not a filter option.
+	ShowTrackedChanges bool
 
 	// PaperFormat sets the paper format applied to the page styles before
 	// export. Use [PaperFormatUser] with PaperWidth/PaperHeight for custom
@@ -353,11 +365,11 @@ type geometry struct {
 	height    int
 }
 
-// resolveGeometry derives the page geometry from [Options]. needed reports
-// whether any geometry change was requested. When a paper format and landscape
-// are both set, the dimensions are oriented to landscape.
-func resolveGeometry(opts Options) (g geometry, needed bool) {
-	g.landscape = opts.Landscape
+// resolveGeometry derives the page geometry from [Options]. A zero geometry
+// leaves the page styles untouched. When a paper format and landscape are both
+// set, the dimensions are oriented to landscape.
+func resolveGeometry(opts Options) geometry {
+	g := geometry{landscape: opts.Landscape}
 
 	if opts.PaperFormat == PaperFormatUser {
 		g.width, g.height = opts.PaperWidth, opts.PaperHeight
@@ -369,9 +381,7 @@ func resolveGeometry(opts Options) (g geometry, needed bool) {
 		g.width, g.height = g.height, g.width
 	}
 
-	needed = g.landscape || (g.width > 0 && g.height > 0)
-
-	return g, needed
+	return g
 }
 
 // paperFormatDimensions returns the width and height of a paper format in
