@@ -38,7 +38,8 @@ const (
 // conversion layer:
 //   - Landscape, PaperFormat, PaperWidth, PaperHeight, UpdateIndexes: applied
 //     to the document by a Basic macro before export. See [Convert].
-//   - Password, MacroExecutionMode: passed as document load options.
+//   - Password: answers the document-password request on load.
+//   - MacroExecutionMode: passed as a document load option.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.
@@ -48,8 +49,8 @@ type Options struct {
 	// Maps to UNO property "PageRange".
 	PageRanges string
 
-	// Password is used to open password-protected documents.
-	// Not a filter option.
+	// Password opens an encrypted document. Answers LibreOffice's password
+	// request rather than being passed as a load option. Not a filter option.
 	Password string //nolint:gosec // document open password, not a credential
 
 	// UpdateIndexes refreshes table of contents and indexes before export.
@@ -363,13 +364,11 @@ func paperFormatDimensions(f PaperFormat) (width, height int) {
 // BuildLoadOptions builds a document load options string from [Options].
 // Returns an empty string if no load options are set.
 //
-// Format: comma-separated key=value pairs (e.g., "Password=secret").
+// Format: comma-separated key=value pairs. The password is not a load
+// option: LibreOfficeKit ignores it there, so [Convert] answers the
+// document-password request instead.
 func BuildLoadOptions(opts Options) string {
 	var parts []string
-
-	if opts.Password != "" {
-		parts = append(parts, "Password="+opts.Password)
-	}
 
 	if opts.MacroExecutionMode > 0 {
 		parts = append(parts, fmt.Sprintf("MacroExecutionMode=%d", opts.MacroExecutionMode))

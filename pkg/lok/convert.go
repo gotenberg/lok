@@ -6,7 +6,7 @@ import "os"
 // must be initialized via [Init]. The caller is responsible for serializing
 // calls to Convert if needed (e.g., via an external queue or supervisor).
 //
-// Convert builds load options from the password and macro settings, then
+// Convert loads the document with the password and macro settings, then
 // applies page geometry (landscape, paper format and size) and refreshes
 // indexes through a Basic macro when requested, because LibreOfficeKit cannot
 // do either through a UNO dispatch in headless mode. It exports to PDF with
@@ -24,17 +24,7 @@ func Convert(office *Office, inputPath, outputPath string, opts Options) error {
 		}
 	}
 
-	loadOpts := BuildLoadOptions(opts)
-
-	var doc *Document
-	var err error
-
-	if loadOpts != "" {
-		doc, err = office.LoadDocumentWithOptions(inputPath, loadOpts)
-	} else {
-		doc, err = office.LoadDocument(inputPath)
-	}
-
+	doc, err := office.LoadDocumentWithPassword(inputPath, BuildLoadOptions(opts), opts.Password)
 	if err != nil {
 		return err
 	}

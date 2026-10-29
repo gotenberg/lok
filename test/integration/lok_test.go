@@ -265,12 +265,6 @@ func TestConvert_WithLandscape(t *testing.T) {
 	assertValidPDF(t, outPath)
 }
 
-// Password-protected document tests are disabled. The test fixture created by
-// msoffcrypto-tool uses OLE2 compound encryption which triggers a LibreOffice
-// signal handler conflict with Go's runtime (SA_ONSTACK) on load, causing a
-// fatal crash. A proper OOXML-encrypted fixture requires LibreOffice itself to
-// create it.
-
 func TestConvert_WithPageRanges(t *testing.T) {
 	inputPath := testdataPath(t, "document.docx")
 	outPath := filepath.Join(t.TempDir(), "output.pdf")

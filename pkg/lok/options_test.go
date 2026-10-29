@@ -390,13 +390,15 @@ func TestBuildLoadOptions_Empty(t *testing.T) {
 	}
 }
 
-func TestBuildLoadOptions_Password(t *testing.T) {
+// TestBuildLoadOptions_PasswordIsNotALoadOption pins that the password never
+// reaches the load options: LibreOfficeKit ignores it there and hands the
+// leftover string to the import filter.
+func TestBuildLoadOptions_PasswordIsNotALoadOption(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Password = "secret"
 
-	result := BuildLoadOptions(opts)
-	if result != "Password=secret" {
-		t.Fatalf("expected Password=secret, got: %s", result)
+	if result := BuildLoadOptions(opts); result != "" {
+		t.Fatalf("expected no load options, got: %s", result)
 	}
 }
 
@@ -407,16 +409,5 @@ func TestBuildLoadOptions_MacroExecutionMode(t *testing.T) {
 	result := BuildLoadOptions(opts)
 	if result != "MacroExecutionMode=7" {
 		t.Fatalf("expected MacroExecutionMode=7, got: %s", result)
-	}
-}
-
-func TestBuildLoadOptions_Combined(t *testing.T) {
-	opts := DefaultOptions()
-	opts.Password = "secret"
-	opts.MacroExecutionMode = 7
-
-	result := BuildLoadOptions(opts)
-	if result != "Password=secret,MacroExecutionMode=7" {
-		t.Fatalf("expected Password=secret,MacroExecutionMode=7, got: %s", result)
 	}
 }

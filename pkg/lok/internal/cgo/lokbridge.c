@@ -1,6 +1,13 @@
 #include "lokbridge.h"
 
 #include <stdbool.h>
+#include <string.h>
+
+// Values from LibreOfficeKitEnums.h, which cannot be included from C: it
+// defines a C++-only helper (lokCallbackTypeToString) outside any __cplusplus
+// guard. Both values are part of the LibreOfficeKit ABI and never change.
+#define LOK_BRIDGE_CALLBACK_DOCUMENT_PASSWORD 20
+#define LOK_BRIDGE_FEATURE_DOCUMENT_PASSWORD (1ULL << 0)
 
 LoKit* lok_bridge_init_2(const char* installPath,
                          const char* userProfilePath) {
@@ -10,6 +17,42 @@ LoKit* lok_bridge_init_2(const char* installPath,
 void lok_bridge_destroy(LoKit* pOffice) {
     if (!pOffice) return;
     pOffice->pClass->destroy(pOffice);
+}
+
+// LibreOfficeKit asks for a document password through the registered callback
+// and blocks until setDocumentPassword answers. The callback runs synchronously
+// on the loading thread with the SolarMutex released, so answering from inside
+// it is safe. A NULL password aborts the load. Only the first request of a load
+// gets the password: a wrong password makes LibreOffice ask again, and
+// answering NULL then stops the loop.
+static void lok_bridge_callback(int nType, const char* pPayload, void* pData) {
+    PasswordState* pState = (PasswordState*)pData;
+    if (!pState || !pPayload || nType != LOK_BRIDGE_CALLBACK_DOCUMENT_PASSWORD) return;
+
+    const char* pPassword = NULL;
+    if (pState->nRequests == 0) pPassword = pState->pPassword;
+    pState->nRequests++;
+
+    pState->pOffice->pClass->setDocumentPassword(pState->pOffice, pPayload,
+                                                 pPassword);
+}
+
+PasswordState* lok_bridge_enable_document_password(LoKit* pOffice) {
+    if (!pOffice) return NULL;
+
+    PasswordState* pState = calloc(1, sizeof(PasswordState));
+    if (!pState) return NULL;
+    pState->pOffice = pOffice;
+
+    pOffice->pClass->registerCallback(pOffice, lok_bridge_callback, pState);
+    pOffice->pClass->setOptionalFeatures(pOffice,
+                                         LOK_BRIDGE_FEATURE_DOCUMENT_PASSWORD);
+
+    return pState;
+}
+
+void lok_bridge_free_password_state(PasswordState* pState) {
+    free(pState);
 }
 
 char* lok_bridge_get_error(LoKit* pOffice) {
@@ -64,16 +107,24 @@ void lok_bridge_trim_memory(LoKit* pOffice, int nTarget) {
 #endif
 }
 
-LoKitDocument* lok_bridge_document_load(LoKit* pOffice, const char* pURL) {
-    if (!pOffice) return NULL;
-    return pOffice->pClass->documentLoad(pOffice, pURL);
-}
+// Without a password, a password request is answered with NULL and the load
+// fails instead of blocking.
+LoKitDocument* lok_bridge_document_load_with_password(LoKit* pOffice,
+                                                      PasswordState* pState,
+                                                      const char* pURL,
+                                                      const char* pOptions,
+                                                      const char* pPassword) {
+    if (!pOffice || !pState) return NULL;
 
-LoKitDocument* lok_bridge_document_load_with_options(LoKit* pOffice,
-                                                     const char* pURL,
-                                                     const char* pOptions) {
-    if (!pOffice) return NULL;
-    return pOffice->pClass->documentLoadWithOptions(pOffice, pURL, pOptions);
+    pState->pPassword = (char*)pPassword;
+    pState->nRequests = 0;
+
+    LoKitDocument* pDoc =
+        pOffice->pClass->documentLoadWithOptions(pOffice, pURL, pOptions);
+
+    pState->pPassword = NULL;
+
+    return pDoc;
 }
 
 void lok_bridge_document_destroy(LoKitDocument* pDoc) {

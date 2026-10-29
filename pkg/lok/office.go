@@ -187,24 +187,28 @@ func setEnv(key, value string) func() {
 // LoadDocument opens a document at the given file path. The returned
 // [Document] must be closed by the caller when no longer needed.
 func (o *Office) LoadDocument(path string) (*Document, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	if o.closed {
-		return nil, ErrOfficeDestroyed
-	}
-
-	doc, err := o.internal.LoadDocument(path)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
-	}
-
-	return &Document{internal: doc, office: o}, nil
+	return o.load(path, "", "")
 }
 
 // LoadDocumentWithOptions opens a document with additional load options.
 // The returned [Document] must be closed by the caller when no longer needed.
 func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error) {
+	return o.load(path, options, "")
+}
+
+// LoadDocumentWithPassword opens an encrypted document with additional load
+// options, answering LibreOffice's password request with password. Loading
+// fails with [ErrLoadFailed] when the password is wrong. LibreOffice asks only
+// once per load, so a wrong password never blocks. The returned [Document]
+// must be closed by the caller when no longer needed.
+//
+// Without a password, [Office.LoadDocument] and
+// [Office.LoadDocumentWithOptions] fail to load an encrypted document.
+func (o *Office) LoadDocumentWithPassword(path, options, password string) (*Document, error) {
+	return o.load(path, options, password)
+}
+
+func (o *Office) load(path, options, password string) (*Document, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -212,7 +216,7 @@ func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error
 		return nil, ErrOfficeDestroyed
 	}
 
-	doc, err := o.internal.LoadDocumentWithOptions(path, options)
+	doc, err := o.internal.LoadDocument(path, options, password)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
 	}

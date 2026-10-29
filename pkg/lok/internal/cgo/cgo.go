@@ -11,9 +11,11 @@ import (
 	"unsafe"
 )
 
-// Office wraps a C LoKit handle.
+// Office wraps a C LoKit handle and the state its document-password callback
+// reads.
 type Office struct {
-	handle *C.LoKit
+	handle    *C.LoKit
+	passwords *C.PasswordState
 }
 
 // Document wraps a C LoKitDocument handle with a back-reference to the
@@ -36,7 +38,12 @@ func InitWithUserProfile(installPath, profilePath string) (*Office, error) {
 		return nil, errors.New("lok_bridge_init_2 returned nil")
 	}
 
-	return &Office{handle: handle}, nil
+	passwords := C.lok_bridge_enable_document_password(handle)
+	if passwords == nil {
+		return nil, errors.New("enabling document passwords failed")
+	}
+
+	return &Office{handle: handle, passwords: passwords}, nil
 }
 
 // Destroy releases the LibreOfficeKit instance.
@@ -47,6 +54,9 @@ func (o *Office) Destroy() {
 
 	C.lok_bridge_destroy(o.handle)
 	o.handle = nil
+
+	C.lok_bridge_free_password_state(o.passwords)
+	o.passwords = nil
 }
 
 // lastError returns an error built from LibreOffice's last error message,
@@ -111,28 +121,24 @@ func (o *Office) TrimMemory(target int) {
 	C.lok_bridge_trim_memory(o.handle, C.int(target))
 }
 
-// LoadDocument opens a document at the given file path.
-func (o *Office) LoadDocument(path string) (*Document, error) {
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-
-	handle := C.lok_bridge_document_load(o.handle, cPath)
-	if handle == nil {
-		return nil, o.lastError()
-	}
-
-	return &Document{handle: handle, office: o}, nil
-}
-
-// LoadDocumentWithOptions opens a document with additional load options.
-func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error) {
+// LoadDocument opens a document at the given file path with the given load
+// options. A non-empty password answers LibreOffice's password request for an
+// encrypted document; otherwise, or when the password is wrong, loading an
+// encrypted document fails.
+func (o *Office) LoadDocument(path, options, password string) (*Document, error) {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
 	cOptions := C.CString(options)
 	defer C.free(unsafe.Pointer(cOptions))
 
-	handle := C.lok_bridge_document_load_with_options(o.handle, cPath, cOptions)
+	var cPassword *C.char
+	if password != "" {
+		cPassword = C.CString(password)
+		defer C.free(unsafe.Pointer(cPassword))
+	}
+
+	handle := C.lok_bridge_document_load_with_password(o.handle, o.passwords, cPath, cOptions, cPassword)
 	if handle == nil {
 		return nil, o.lastError()
 	}
