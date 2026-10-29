@@ -148,9 +148,32 @@ type Options struct {
 	// Maps to UNO property "PDFUACompliance".
 	PDFUniversalAccess bool
 
-	// NativeWatermarkText adds a tiled watermark with the given text.
-	// Maps to UNO property "TiledWatermark".
+	// NativeWatermarkText draws one watermark with the given text across the
+	// middle of each page. Maps to UNO property "Watermark".
 	NativeWatermarkText string
+
+	// NativeWatermarkColor sets the watermark color as a 0xRRGGBB integer.
+	// 0 keeps LibreOffice's default color. Maps to UNO property
+	// "WatermarkColor".
+	NativeWatermarkColor int
+
+	// NativeWatermarkFontHeight sets the watermark font height in points.
+	// 0 lets LibreOffice size it to the page. Maps to UNO property
+	// "WatermarkFontHeight".
+	NativeWatermarkFontHeight int
+
+	// NativeWatermarkRotateAngle sets the watermark rotation in tenths of a
+	// degree. 0 keeps LibreOffice's default angle. Maps to UNO property
+	// "WatermarkRotateAngle".
+	NativeWatermarkRotateAngle int
+
+	// NativeWatermarkFontName sets the watermark font. Empty keeps
+	// LibreOffice's default font. Maps to UNO property "WatermarkFontName".
+	NativeWatermarkFontName string
+
+	// NativeTiledWatermarkText repeats the given text as a watermark tiled
+	// over each page. Maps to UNO property "TiledWatermark".
+	NativeTiledWatermarkText string
 
 	// InitialView sets the initial view mode (0=default, 1=bookmarks, 2=thumbnails).
 	InitialView int
@@ -250,7 +273,9 @@ func BuildFilterOptions(opts Options) string {
 
 	// String properties.
 	addString("PageRange", opts.PageRanges, defaults.PageRanges)
-	addString("TiledWatermark", opts.NativeWatermarkText, defaults.NativeWatermarkText)
+	addString("Watermark", opts.NativeWatermarkText, defaults.NativeWatermarkText)
+	addString("WatermarkFontName", opts.NativeWatermarkFontName, defaults.NativeWatermarkFontName)
+	addString("TiledWatermark", opts.NativeTiledWatermarkText, defaults.NativeTiledWatermarkText)
 
 	// Bool properties.
 	addBool("ExportFormFields", opts.ExportFormFields, defaults.ExportFormFields)
@@ -291,6 +316,9 @@ func BuildFilterOptions(opts Options) string {
 	addLong("Zoom", opts.Zoom, defaults.Zoom)
 	addLong("PageLayout", opts.PageLayout, defaults.PageLayout)
 	addLong("OpenBookmarkLevels", opts.OpenBookmarkLevels, defaults.OpenBookmarkLevels)
+	addLong("WatermarkColor", opts.NativeWatermarkColor, defaults.NativeWatermarkColor)
+	addLong("WatermarkFontHeight", opts.NativeWatermarkFontHeight, defaults.NativeWatermarkFontHeight)
+	addLong("WatermarkRotateAngle", opts.NativeWatermarkRotateAngle, defaults.NativeWatermarkRotateAngle)
 
 	if len(props) == 0 {
 		return ""

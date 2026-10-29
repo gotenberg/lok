@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"bytes"
 	"math"
 	"path/filepath"
 	"strings"
@@ -253,4 +254,34 @@ func TestBehavior_OptionsApplyPerConversion(t *testing.T) {
 			t.Errorf("%s: got %.0f x %.0f (wide=%v), want wide=%v", s.name, w, h, wide, s.wantWide)
 		}
 	}
+}
+
+// TestBehavior_Watermarks confirms the plain and tiled watermarks each reach
+// the PDF, under their own option. LibreOffice writes the plain watermark as
+// text and the tiled one as outlines, so the tiled one is asserted on the
+// rendered page.
+func TestBehavior_Watermarks(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+	plainPDF := convertFixture(t, input, lok.DefaultOptions())
+
+	t.Run("plain", func(t *testing.T) {
+		opts := lok.DefaultOptions()
+		opts.NativeWatermarkText = "PLAINMARK"
+
+		if text := pdfText(t, convertFixture(t, input, opts)); !strings.Contains(text, "PLAINMARK") {
+			t.Fatalf("watermark missing from the PDF text:\n%s", text)
+		}
+		if text := pdfText(t, plainPDF); strings.Contains(text, "PLAINMARK") {
+			t.Fatalf("a default conversion carries the watermark:\n%s", text)
+		}
+	})
+
+	t.Run("tiled", func(t *testing.T) {
+		opts := lok.DefaultOptions()
+		opts.NativeTiledWatermarkText = "TILEDMARK"
+
+		if bytes.Equal(pdfRenderFirstPage(t, convertFixture(t, input, opts)), pdfRenderFirstPage(t, plainPDF)) {
+			t.Fatal("the tiled watermark left the first page unchanged")
+		}
+	})
 }

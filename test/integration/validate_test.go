@@ -110,3 +110,16 @@ func assertPDFACompliant(t *testing.T, path, flavour string) {
 		t.Fatalf("could not determine %s conformance of %q:\n%s", flavour, path, report)
 	}
 }
+
+// pdfRenderFirstPage renders the first page at a low resolution and returns the
+// image bytes, to compare what two PDFs draw.
+func pdfRenderFirstPage(t *testing.T, path string) []byte {
+	t.Helper()
+
+	out, err := exec.Command("pdftoppm", "-r", "20", "-f", "1", "-l", "1", path).Output()
+	if err != nil {
+		t.Fatalf("pdftoppm %q failed: %v", path, err)
+	}
+
+	return out
+}

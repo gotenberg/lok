@@ -119,6 +119,41 @@ func TestBuildFilterOptions_TrickyNames(t *testing.T) {
 		{
 			name:     "NativeWatermarkText",
 			mutate:   func(o *Options) { o.NativeWatermarkText = "DRAFT" },
+			unoName:  "Watermark",
+			unoType:  "string",
+			unoValue: "DRAFT",
+		},
+		{
+			name:     "NativeWatermarkColor",
+			mutate:   func(o *Options) { o.NativeWatermarkColor = 0xFF0000 },
+			unoName:  "WatermarkColor",
+			unoType:  "long",
+			unoValue: float64(0xFF0000),
+		},
+		{
+			name:     "NativeWatermarkFontHeight",
+			mutate:   func(o *Options) { o.NativeWatermarkFontHeight = 48 },
+			unoName:  "WatermarkFontHeight",
+			unoType:  "long",
+			unoValue: float64(48),
+		},
+		{
+			name:     "NativeWatermarkRotateAngle",
+			mutate:   func(o *Options) { o.NativeWatermarkRotateAngle = 450 },
+			unoName:  "WatermarkRotateAngle",
+			unoType:  "long",
+			unoValue: float64(450),
+		},
+		{
+			name:     "NativeWatermarkFontName",
+			mutate:   func(o *Options) { o.NativeWatermarkFontName = "DejaVu Sans" },
+			unoName:  "WatermarkFontName",
+			unoType:  "string",
+			unoValue: "DejaVu Sans",
+		},
+		{
+			name:     "NativeTiledWatermarkText",
+			mutate:   func(o *Options) { o.NativeTiledWatermarkText = "DRAFT" },
 			unoName:  "TiledWatermark",
 			unoType:  "string",
 			unoValue: "DRAFT",
@@ -179,7 +214,11 @@ func TestBuildFilterOptions_Watermark(t *testing.T) {
 	result := BuildFilterOptions(opts)
 	props := parseFilterJSON(t, result)
 
-	assertProp(t, props, "TiledWatermark", "string", "CONFIDENTIAL")
+	assertProp(t, props, "Watermark", "string", "CONFIDENTIAL")
+
+	if _, ok := props["TiledWatermark"]; ok {
+		t.Error("NativeWatermarkText must not set TiledWatermark")
+	}
 }
 
 func TestBuildFilterOptions_AllOptions(t *testing.T) {
@@ -237,7 +276,7 @@ func TestBuildFilterOptions_AllOptions(t *testing.T) {
 	assertProp(t, props, "IsAddStream", "boolean", true)
 	assertProp(t, props, "SelectPdfVersion", "long", float64(2))
 	assertProp(t, props, "PDFUACompliance", "boolean", true)
-	assertProp(t, props, "TiledWatermark", "string", "DRAFT")
+	assertProp(t, props, "Watermark", "string", "DRAFT")
 	assertProp(t, props, "UseTransitionEffects", "boolean", false)
 	assertProp(t, props, "OpenBookmarkLevels", "long", float64(3))
 	assertProp(t, props, "Quality", "long", float64(50))

@@ -177,7 +177,12 @@ func defineFlags() *cliOptions {
 	flag.BoolVar(&o.PDFUniversalAccess, "pdf-universal-access", defaults.PDFUniversalAccess, "Enable PDF/UA compliance")
 
 	// Watermark.
-	flag.StringVar(&o.NativeWatermarkText, "native-watermark-text", defaults.NativeWatermarkText, "Tiled watermark text")
+	flag.StringVar(&o.NativeWatermarkText, "native-watermark-text", defaults.NativeWatermarkText, "Watermark text drawn once across each page")
+	flag.IntVar(&o.NativeWatermarkColor, "native-watermark-color", defaults.NativeWatermarkColor, "Watermark color as a 0xRRGGBB integer (0=LibreOffice default)")
+	flag.IntVar(&o.NativeWatermarkFontHeight, "native-watermark-font-height", defaults.NativeWatermarkFontHeight, "Watermark font height in points (0=fit the page)")
+	flag.IntVar(&o.NativeWatermarkRotateAngle, "native-watermark-rotate-angle", defaults.NativeWatermarkRotateAngle, "Watermark rotation in tenths of a degree (0=LibreOffice default)")
+	flag.StringVar(&o.NativeWatermarkFontName, "native-watermark-font-name", defaults.NativeWatermarkFontName, "Watermark font name (empty=LibreOffice default)")
+	flag.StringVar(&o.NativeTiledWatermarkText, "native-tiled-watermark-text", defaults.NativeTiledWatermarkText, "Watermark text tiled over each page")
 
 	// Viewer preferences.
 	flag.IntVar(&o.InitialView, "initial-view", defaults.InitialView, "Initial view mode (0=default, 1=bookmarks, 2=thumbnails)")
@@ -272,6 +277,11 @@ type longRunningRequest struct {
 	PDFVersion                      *int    `json:"pdfVersion,omitempty"`
 	PDFUniversalAccess              *bool   `json:"pdfUniversalAccess,omitempty"`
 	NativeWatermarkText             *string `json:"nativeWatermarkText,omitempty"`
+	NativeWatermarkColor            *int    `json:"nativeWatermarkColor,omitempty"`
+	NativeWatermarkFontHeight       *int    `json:"nativeWatermarkFontHeight,omitempty"`
+	NativeWatermarkRotateAngle      *int    `json:"nativeWatermarkRotateAngle,omitempty"`
+	NativeWatermarkFontName         *string `json:"nativeWatermarkFontName,omitempty"`
+	NativeTiledWatermarkText        *string `json:"nativeTiledWatermarkText,omitempty"`
 	UseTransitionEffects            *bool   `json:"useTransitionEffects,omitempty"`
 	OpenBookmarkLevels              *int    `json:"openBookmarkLevels,omitempty"`
 	InitialView                     *int    `json:"initialView,omitempty"`
@@ -419,6 +429,11 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 	setInt(&opts.PDFVersion, req.PDFVersion)
 	setBool(&opts.PDFUniversalAccess, req.PDFUniversalAccess)
 	setString(&opts.NativeWatermarkText, req.NativeWatermarkText)
+	setInt(&opts.NativeWatermarkColor, req.NativeWatermarkColor)
+	setInt(&opts.NativeWatermarkFontHeight, req.NativeWatermarkFontHeight)
+	setInt(&opts.NativeWatermarkRotateAngle, req.NativeWatermarkRotateAngle)
+	setString(&opts.NativeWatermarkFontName, req.NativeWatermarkFontName)
+	setString(&opts.NativeTiledWatermarkText, req.NativeTiledWatermarkText)
 	setBool(&opts.UseTransitionEffects, req.UseTransitionEffects)
 	setInt(&opts.OpenBookmarkLevels, req.OpenBookmarkLevels)
 	setInt(&opts.InitialView, req.InitialView)
