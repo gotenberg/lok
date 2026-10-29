@@ -25,7 +25,7 @@ func TestDefaultOptions(t *testing.T) {
 		{"Password", opts.Password, ""},
 		{"PageRanges", opts.PageRanges, ""},
 		{"PaperFormat", int(opts.PaperFormat), -1},
-		{"MacroExecutionMode", opts.MacroExecutionMode, 0},
+		{"EnableMacros", opts.EnableMacros, false},
 	}
 
 	for _, c := range checks {
@@ -402,12 +402,12 @@ func TestBuildLoadOptions_PasswordIsNotALoadOption(t *testing.T) {
 	}
 }
 
-func TestBuildLoadOptions_MacroExecutionMode(t *testing.T) {
+func TestBuildLoadOptions_EnableMacros(t *testing.T) {
 	opts := DefaultOptions()
-	opts.MacroExecutionMode = 7
+	opts.EnableMacros = true
 
 	result := BuildLoadOptions(opts)
-	if result != "MacroExecutionMode=7" {
-		t.Fatalf("expected MacroExecutionMode=7, got: %s", result)
+	if result != "EnableMacrosExecution=true,MacroSecurityLevel=0" {
+		t.Fatalf("expected EnableMacrosExecution=true,MacroSecurityLevel=0, got: %s", result)
 	}
 }

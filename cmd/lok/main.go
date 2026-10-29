@@ -126,7 +126,7 @@ func defineFlags() *cliOptions {
 
 	// Document load options.
 	flag.StringVar(&o.Password, "password", "", "Document open password")
-	flag.IntVar(&o.MacroExecutionMode, "macro-execution-mode", 0, "Macro execution mode (0=never, 7=always)")
+	flag.BoolVar(&o.EnableMacros, "enable-macros", false, "Run the document's macros, including load-event ones (trusted documents only)")
 
 	// Printer descriptor options.
 	flag.BoolVar(&o.Landscape, "landscape", false, "Set landscape orientation")
@@ -243,7 +243,7 @@ type longRunningRequest struct {
 
 	// All Options fields are optional overrides.
 	Password                        *string `json:"password,omitempty"` //nolint:gosec // document open password, not a credential
-	MacroExecutionMode              *int    `json:"macroExecutionMode,omitempty"`
+	EnableMacros                    *bool   `json:"enableMacros,omitempty"`
 	Landscape                       *bool   `json:"landscape,omitempty"`
 	PaperFormat                     *int    `json:"paperFormat,omitempty"`
 	PaperWidth                      *int    `json:"paperWidth,omitempty"`
@@ -382,7 +382,7 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 
 	// Load options.
 	setString(&opts.Password, req.Password)
-	setInt(&opts.MacroExecutionMode, req.MacroExecutionMode)
+	setBool(&opts.EnableMacros, req.EnableMacros)
 
 	// Printer descriptor.
 	setBool(&opts.Landscape, req.Landscape)

@@ -39,7 +39,7 @@ const (
 //   - Landscape, PaperFormat, PaperWidth, PaperHeight, UpdateIndexes: applied
 //     to the document by a Basic macro before export. See [Convert].
 //   - Password: answers the document-password request on load.
-//   - MacroExecutionMode: passed as a document load option.
+//   - EnableMacros: passed as document load options.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.
@@ -57,10 +57,11 @@ type Options struct {
 	// Not a filter option.
 	UpdateIndexes bool
 
-	// MacroExecutionMode controls macro execution when loading the document.
-	// 0 = never (default), 7 = always. Passed as a document load option.
-	// Not a filter option.
-	MacroExecutionMode int
+	// EnableMacros runs the document's macros, including the ones bound to
+	// document events such as load, without asking. Defaults to false: macros
+	// never run. Only enable it for trusted documents. Passed as document load
+	// options. Not a filter option.
+	EnableMacros bool
 
 	// PaperFormat sets the paper format applied to the page styles before
 	// export. Use [PaperFormatUser] with PaperWidth/PaperHeight for custom
@@ -370,8 +371,11 @@ func paperFormatDimensions(f PaperFormat) (width, height int) {
 func BuildLoadOptions(opts Options) string {
 	var parts []string
 
-	if opts.MacroExecutionMode > 0 {
-		parts = append(parts, fmt.Sprintf("MacroExecutionMode=%d", opts.MacroExecutionMode))
+	// LibreOfficeKit reads EnableMacrosExecution and MacroSecurityLevel, and
+	// resets the security level to 1 (medium: ask first) on every load. Level 0
+	// runs macros without asking, since nothing can answer a prompt.
+	if opts.EnableMacros {
+		parts = append(parts, "EnableMacrosExecution=true", "MacroSecurityLevel=0")
 	}
 
 	if len(parts) == 0 {
