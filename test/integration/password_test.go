@@ -60,8 +60,8 @@ func TestPassword(t *testing.T) {
 				opts.Password = "wrong"
 
 				err := lok.Convert(sharedOffice, input, filepath.Join(t.TempDir(), "out.pdf"), opts)
-				if !errors.Is(err, lok.ErrLoadFailed) {
-					t.Fatalf("Convert with a wrong password: got %v, want ErrLoadFailed", err)
+				if !errors.Is(err, lok.ErrLoadFailed) || !errors.Is(err, lok.ErrInvalidPassword) {
+					t.Fatalf("Convert with a wrong password: got %v, want ErrLoadFailed and ErrInvalidPassword", err)
 				}
 			})
 

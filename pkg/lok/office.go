@@ -1,6 +1,7 @@
 package lok
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -213,12 +214,14 @@ func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error
 
 // LoadDocumentWithPassword opens an encrypted document with additional load
 // options, answering LibreOffice's password request with password. Loading
-// fails with [ErrLoadFailed] when the password is wrong. LibreOffice asks only
+// fails with [ErrLoadFailed] and [ErrInvalidPassword] when the password is
+// wrong. LibreOffice asks only
 // once per load, so a wrong password never blocks. The returned [Document]
 // must be closed by the caller when no longer needed.
 //
 // Without a password, [Office.LoadDocument] and
-// [Office.LoadDocumentWithOptions] fail to load an encrypted document.
+// [Office.LoadDocumentWithOptions] fail to load an encrypted document, with
+// the same errors.
 func (o *Office) LoadDocumentWithPassword(path, options, password string) (*Document, error) {
 	return o.load(path, options, password)
 }
@@ -232,6 +235,10 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 	}
 
 	doc, err := o.internal.LoadDocument(path, options, password)
+	if errors.Is(err, cgo.ErrPasswordRejected) {
+		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, ErrInvalidPassword)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
 	}

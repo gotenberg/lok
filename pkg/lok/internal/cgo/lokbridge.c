@@ -122,6 +122,8 @@ LoKitDocument* lok_bridge_document_load_with_password(LoKit* pOffice,
     LoKitDocument* pDoc =
         pOffice->pClass->documentLoadWithOptions(pOffice, pURL, pOptions);
 
+    // nRequests stays readable after the call, so the caller can tell a
+    // password rejection from any other load failure.
     pState->pPassword = NULL;
 
     return pDoc;

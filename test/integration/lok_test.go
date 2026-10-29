@@ -216,6 +216,10 @@ func TestLoadError(t *testing.T) {
 	if !errors.Is(err, lok.ErrLoadFailed) {
 		t.Fatalf("expected ErrLoadFailed, got: %v", err)
 	}
+
+	if errors.Is(err, lok.ErrInvalidPassword) {
+		t.Fatalf("a missing file is not a password failure: %v", err)
+	}
 }
 
 func TestGetVersionInfo(t *testing.T) {

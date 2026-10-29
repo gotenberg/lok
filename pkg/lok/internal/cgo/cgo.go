@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -24,6 +25,10 @@ type Document struct {
 	handle *C.LoKitDocument
 	office *Office
 }
+
+// ErrPasswordRejected reports a load that failed after LibreOffice asked for
+// the document password and rejected the one given.
+var ErrPasswordRejected = errors.New("wrong document password")
 
 // InitWithUserProfile loads LibreOffice with a custom user profile directory.
 func InitWithUserProfile(installPath, profilePath string) (*Office, error) {
@@ -140,6 +145,10 @@ func (o *Office) LoadDocument(path, options, password string) (*Document, error)
 
 	handle := C.lok_bridge_document_load_with_password(o.handle, o.passwords, cPath, cOptions, cPassword)
 	if handle == nil {
+		if o.passwords.nRequests > 0 {
+			return nil, fmt.Errorf("%w: %w", ErrPasswordRejected, o.lastError())
+		}
+
 		return nil, o.lastError()
 	}
 
