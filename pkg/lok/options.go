@@ -413,13 +413,23 @@ func paperFormatDimensions(f PaperFormat) (width, height int) {
 }
 
 // BuildLoadOptions builds a document load options string from [Options].
-// Returns an empty string if no load options are set.
+//
+// It sets Batch=true unless a password is set. Without it, LibreOfficeKit
+// waits on import dialogs a headless process cannot answer, such as Calc's
+// text import dialog for a CSV, and the load never returns.
 //
 // Format: comma-separated key=value pairs. The password is not a load
 // option: LibreOfficeKit ignores it there, so [Convert] answers the
 // document-password request instead.
 func BuildLoadOptions(opts Options) string {
 	var parts []string
+
+	// Batch also makes the load silent, which skips the document-password
+	// request. Encrypted documents are ODF or OOXML, whose import shows no
+	// dialog, so they load without it.
+	if opts.Password == "" {
+		parts = append(parts, "Batch=true")
+	}
 
 	// LibreOfficeKit reads EnableMacrosExecution and MacroSecurityLevel, and
 	// resets the security level to 1 (medium: ask first) on every load. Level 0
@@ -428,17 +438,5 @@ func BuildLoadOptions(opts Options) string {
 		parts = append(parts, "EnableMacrosExecution=true", "MacroSecurityLevel=0")
 	}
 
-	if len(parts) == 0 {
-		return ""
-	}
-
-	var result strings.Builder
-	for i, p := range parts {
-		if i > 0 {
-			result.WriteString(",")
-		}
-		result.WriteString(p)
-	}
-
-	return result.String()
+	return strings.Join(parts, ",")
 }

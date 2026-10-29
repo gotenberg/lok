@@ -439,10 +439,10 @@ func TestPaperFormatDimensions(t *testing.T) {
 	}
 }
 
-func TestBuildLoadOptions_Empty(t *testing.T) {
+func TestBuildLoadOptions_Defaults(t *testing.T) {
 	result := BuildLoadOptions(DefaultOptions())
-	if result != "" {
-		t.Fatalf("expected empty string for defaults, got: %s", result)
+	if result != "Batch=true" {
+		t.Fatalf("expected Batch=true for defaults, got: %s", result)
 	}
 }
 
@@ -453,6 +453,7 @@ func TestBuildLoadOptions_PasswordIsNotALoadOption(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Password = "secret"
 
+	// Batch would make the load silent and skip the password request.
 	if result := BuildLoadOptions(opts); result != "" {
 		t.Fatalf("expected no load options, got: %s", result)
 	}
@@ -463,7 +464,7 @@ func TestBuildLoadOptions_EnableMacros(t *testing.T) {
 	opts.EnableMacros = true
 
 	result := BuildLoadOptions(opts)
-	if result != "EnableMacrosExecution=true,MacroSecurityLevel=0" {
-		t.Fatalf("expected EnableMacrosExecution=true,MacroSecurityLevel=0, got: %s", result)
+	if result != "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0" {
+		t.Fatalf("expected Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0, got: %s", result)
 	}
 }

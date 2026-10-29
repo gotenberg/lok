@@ -40,6 +40,10 @@ func encryptedCopy(t *testing.T, format string) string {
 }
 
 func TestPassword(t *testing.T) {
+	// A batch load switches LibreOffice to silent dialogs for the whole process.
+	// Run one first so the password request is shown to work after it.
+	convertFixture(t, testdataPath(t, "document.docx"), lok.DefaultOptions())
+
 	for _, format := range []string{"odt", "docx"} {
 		t.Run(format, func(t *testing.T) {
 			input := encryptedCopy(t, format)
