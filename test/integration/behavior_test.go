@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gotenberg/litho/pkg/models"
 	"github.com/gotenberg/lok/pkg/lok"
 )
 
@@ -77,17 +78,17 @@ func TestBehavior_DefaultPageSize(t *testing.T) {
 }
 
 // TestBehavior_PDFAConformance validates that PDFVersion produces a PDF that
-// veraPDF certifies as conformant with the corresponding PDF/A flavour.
+// conforms to the corresponding PDF/A profile.
 func TestBehavior_PDFAConformance(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
 	cases := []struct {
 		version int
-		flavour string
+		profile models.PDFAProfile
 	}{
-		{1, "1b"},
-		{2, "2b"},
-		{3, "3b"},
+		{1, models.PDFA1b},
+		{2, models.PDFA2b},
+		{3, models.PDFA3b},
 	}
 
 	for _, c := range cases {
@@ -95,20 +96,19 @@ func TestBehavior_PDFAConformance(t *testing.T) {
 		opts.PDFVersion = c.version
 
 		out := convertFixture(t, input, opts)
-		assertPDFACompliant(t, out, c.flavour)
+		assertPDFACompliant(t, out, c.profile)
 	}
 }
 
-// TestBehavior_DefaultIsNotPDFA confirms veraPDF discriminates: a default export
-// (PDFVersion 0) is not PDF/A-2b conformant.
+// TestBehavior_DefaultIsNotPDFA confirms the validator discriminates: a default
+// export (PDFVersion 0) is not PDF/A-2b conformant.
 func TestBehavior_DefaultIsNotPDFA(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
 	out := convertFixture(t, input, lok.DefaultOptions())
 
-	report := verapdfReport(t, out, "2b")
-	if !strings.Contains(report, `isCompliant="false"`) {
-		t.Errorf("expected default export to be non-PDF/A-2b, report:\n%s", report)
+	if len(pdfaViolations(t, out, models.PDFA2b)) == 0 {
+		t.Error("expected default export to be non-PDF/A-2b")
 	}
 }
 
@@ -201,8 +201,8 @@ func TestBehavior_CalcLandscape(t *testing.T) {
 // away from the top-left cell still renders in full with SinglePageSheets. The
 // fixture is saved scrolled to row 37; without the topLeftCell reset the page
 // would start there and drop the header, so the "Meteor" column header only
-// appears when the whole sheet is rendered. pdftotext splits some words of the
-// LibreOffice 26.8 export ("Met eor"), so the match ignores spaces.
+// appears when the whole sheet is rendered. Text extraction can split a word of
+// the LibreOffice 26.8 export ("Met eor"), so the match ignores spaces.
 // See https://github.com/gotenberg/gotenberg/issues/1222.
 func TestBehavior_SinglePageSheetsScrolled(t *testing.T) {
 	input := testdataPath(t, "spreadsheet-scrolled.xlsx")
@@ -291,8 +291,8 @@ func TestBehavior_Watermarks(t *testing.T) {
 func TestBehavior_TaggedPdf(t *testing.T) {
 	input := testdataPath(t, "document.docx")
 
-	if got := pdfInfo(t, convertFixture(t, input, lok.DefaultOptions()))["Tagged"]; got != "no" {
-		t.Fatalf("default export: Tagged = %q, want no", got)
+	if pdfTagged(t, convertFixture(t, input, lok.DefaultOptions())) {
+		t.Fatal("default export is tagged")
 	}
 
 	tagged := lok.DefaultOptions()
@@ -303,8 +303,8 @@ func TestBehavior_TaggedPdf(t *testing.T) {
 
 	for name, opts := range map[string]lok.Options{"TaggedPdf": tagged, "PDFUniversalAccess": ua} {
 		t.Run(name, func(t *testing.T) {
-			if got := pdfInfo(t, convertFixture(t, input, opts))["Tagged"]; got != "yes" {
-				t.Fatalf("Tagged = %q, want yes", got)
+			if !pdfTagged(t, convertFixture(t, input, opts)) {
+				t.Fatal("export is not tagged")
 			}
 		})
 	}

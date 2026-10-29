@@ -3,123 +3,118 @@
 package integration
 
 import (
-	"os/exec"
-	"regexp"
-	"strconv"
-	"strings"
+	"bytes"
+	"context"
+	"image/png"
 	"testing"
+
+	"github.com/gotenberg/litho/pkg/models"
+	"github.com/gotenberg/litho/pkg/pdf"
 )
 
-// These helpers shell out to poppler-utils (pdfinfo, pdftotext) and veraPDF,
-// provided by the test image. They let integration tests assert real output
-// properties (page count, dimensions, text, PDF/A conformance) rather than only
-// checking the %PDF header.
+// These helpers read the output with litho, in process, so integration tests
+// assert real output properties (page count, dimensions, text, tagging, PDF/A
+// conformance) rather than only checking the %PDF header. litho's PDF/A
+// validator is scored against veraPDF in litho's own test suite.
 
-// pdfInfo runs pdfinfo and returns its key/value fields.
-func pdfInfo(t *testing.T, path string) map[string]string {
+// openPDF opens path with litho and closes it when the test ends.
+func openPDF(t *testing.T, path string) *pdf.Reader {
 	t.Helper()
 
-	out, err := exec.Command("pdfinfo", path).Output()
+	r, err := pdf.OpenFile(context.Background(), path)
 	if err != nil {
-		t.Fatalf("pdfinfo %q failed: %v", path, err)
+		t.Fatalf("opening %q: %v", path, err)
 	}
 
-	fields := make(map[string]string)
+	t.Cleanup(func() { r.Close() })
 
-	for line := range strings.SplitSeq(string(out), "\n") {
-		key, value, found := strings.Cut(line, ":")
-		if !found {
-			continue
-		}
-
-		fields[strings.TrimSpace(key)] = strings.TrimSpace(value)
-	}
-
-	return fields
+	return r
 }
 
 // pdfPageCount returns the number of pages in the PDF.
 func pdfPageCount(t *testing.T, path string) int {
 	t.Helper()
 
-	pages := pdfInfo(t, path)["Pages"]
-
-	n, err := strconv.Atoi(pages)
+	n, err := openPDF(t, path).PageCount(context.Background())
 	if err != nil {
-		t.Fatalf("parsing page count %q: %v", pages, err)
+		t.Fatalf("counting the pages of %q: %v", path, err)
 	}
 
 	return n
 }
 
-var pageSizeRe = regexp.MustCompile(`([0-9.]+) x ([0-9.]+)`)
-
 // pdfPageSize returns the width and height of the first page in points.
 func pdfPageSize(t *testing.T, path string) (width, height float64) {
 	t.Helper()
 
-	size := pdfInfo(t, path)["Page size"]
-
-	m := pageSizeRe.FindStringSubmatch(size)
-	if m == nil {
-		t.Fatalf("could not parse page size %q", size)
+	page, err := openPDF(t, path).Page(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("reading the first page of %q: %v", path, err)
 	}
 
-	width, _ = strconv.ParseFloat(m[1], 64)
-	height, _ = strconv.ParseFloat(m[2], 64)
-
-	return width, height
+	return page.Width, page.Height
 }
 
 // pdfText extracts the text content of the PDF.
 func pdfText(t *testing.T, path string) string {
 	t.Helper()
 
-	out, err := exec.Command("pdftotext", path, "-").Output()
+	text, err := openPDF(t, path).ExtractAllText(context.Background())
 	if err != nil {
-		t.Fatalf("pdftotext %q failed: %v", path, err)
+		t.Fatalf("extracting the text of %q: %v", path, err)
 	}
 
-	return string(out)
+	return text
 }
 
-// verapdfReport runs veraPDF for the given flavour and returns its
-// machine-readable report. veraPDF exits non-zero for non-compliant files, so
-// the exit code is ignored and the report is parsed instead.
-func verapdfReport(t *testing.T, path, flavour string) string {
+// pdfTagged reports whether the PDF declares itself a Tagged PDF.
+func pdfTagged(t *testing.T, path string) bool {
 	t.Helper()
 
-	out, _ := exec.Command("verapdf", "--flavour", flavour, path).CombinedOutput()
-
-	return string(out)
-}
-
-// assertPDFACompliant fails the test if the PDF does not conform to the given
-// veraPDF flavour (for example "1b", "2b", "3b", or "ua1").
-func assertPDFACompliant(t *testing.T, path, flavour string) {
-	t.Helper()
-
-	report := verapdfReport(t, path, flavour)
-
-	switch {
-	case strings.Contains(report, `isCompliant="false"`):
-		t.Fatalf("PDF %q is not %s compliant:\n%s", path, flavour, report)
-	case strings.Contains(report, `isCompliant="true"`):
-		return
-	default:
-		t.Fatalf("could not determine %s conformance of %q:\n%s", flavour, path, report)
+	tagged, err := openPDF(t, path).IsTagged(context.Background())
+	if err != nil {
+		t.Fatalf("reading the tagging of %q: %v", path, err)
 	}
+
+	return tagged
 }
 
-// pdfRenderFirstPage renders the first page at a low resolution and returns the
-// image bytes, to compare what two PDFs draw.
+// pdfRenderFirstPage renders the first page at a low resolution and returns it
+// as PNG bytes, to compare what two PDFs draw.
 func pdfRenderFirstPage(t *testing.T, path string) []byte {
 	t.Helper()
 
-	out, err := exec.Command("pdftoppm", "-r", "20", "-f", "1", "-l", "1", path).Output()
+	img, err := openPDF(t, path).RenderPage(context.Background(), 1, pdf.WithRenderDPI(20))
 	if err != nil {
-		t.Fatalf("pdftoppm %q failed: %v", path, err)
+		t.Fatalf("rendering the first page of %q: %v", path, err)
 	}
 
-	return out
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encoding the render of %q: %v", path, err)
+	}
+
+	return buf.Bytes()
+}
+
+// pdfaViolations validates the PDF against a PDF/A profile and returns the
+// violations, none when it conforms.
+func pdfaViolations(t *testing.T, path string, profile models.PDFAProfile) []pdf.Violation {
+	t.Helper()
+
+	violations, err := openPDF(t, path).ValidatePDFAReport(context.Background(), profile)
+	if err != nil {
+		t.Fatalf("validating %q against %s: %v", path, profile, err)
+	}
+
+	return violations
+}
+
+// assertPDFACompliant fails the test if the PDF does not conform to profile.
+func assertPDFACompliant(t *testing.T, path string, profile models.PDFAProfile) {
+	t.Helper()
+
+	if violations := pdfaViolations(t, path, profile); len(violations) > 0 {
+		t.Fatalf("PDF %q is not %s compliant: %v", path, profile, violations)
+	}
 }

@@ -1,15 +1,7 @@
-# veraPDF (PDF/A and PDF/UA validation) for integration tests, sourced from
-# gotenberg/integration-tools. Declared as a global ARG so it can name a stage.
-ARG INTEGRATION_TOOLS=gotenberg/integration-tools:latest
-
-FROM ${INTEGRATION_TOOLS} AS tools
-
 FROM debian:trixie-slim
 
 ARG GO_VERSION=1.27.3
 ARG GOLANGCI_LINT_VERSION=v2.15.0
-
-COPY --from=tools /lib/verapdf /lib/verapdf
 
 # LibreOffice packages, hyphenation dictionaries and the trixie-backports
 # source match gotenberg's build/Dockerfile, so lok converts with the same
@@ -23,8 +15,6 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
   libc6-dev \
   fontconfig \
   fonts-liberation \
-  poppler-utils \
-  default-jre-headless \
   hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
   hyphen-en-gb hyphen-en-us hyphen-eo hyphen-es hyphen-fr hyphen-gl hyphen-gu hyphen-hi hyphen-hr hyphen-hu \
   hyphen-id hyphen-is hyphen-it hyphen-kn hyphen-lt hyphen-lv hyphen-ml hyphen-mn hyphen-mr hyphen-nl \
@@ -38,8 +28,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
   libreoffice-math \
   libreofficekit-dev \
  && rm -rf /var/lib/apt/lists/* \
- && fc-cache -f \
- && ln -s /lib/verapdf/verapdf /usr/bin/verapdf
+ && fc-cache -f
 
 RUN arch="$(dpkg --print-architecture)" \
  && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${arch}.tar.gz" \
