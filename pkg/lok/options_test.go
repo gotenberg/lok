@@ -26,6 +26,8 @@ func TestDefaultOptions(t *testing.T) {
 		{"PageRanges", opts.PageRanges, ""},
 		{"PaperFormat", int(opts.PaperFormat), -1},
 		{"EnableMacros", opts.EnableMacros, false},
+		{"NativeWatermarkColor", opts.NativeWatermarkColor, (*int)(nil)},
+		{"NativeWatermarkRotateAngle", opts.NativeWatermarkRotateAngle, (*int)(nil)},
 	}
 
 	for _, c := range checks {
@@ -125,7 +127,7 @@ func TestBuildFilterOptions_TrickyNames(t *testing.T) {
 		},
 		{
 			name:     "NativeWatermarkColor",
-			mutate:   func(o *Options) { o.NativeWatermarkColor = 0xFF0000 },
+			mutate:   func(o *Options) { o.NativeWatermarkColor = new(0xFF0000) },
 			unoName:  "WatermarkColor",
 			unoType:  "long",
 			unoValue: float64(0xFF0000),
@@ -139,7 +141,7 @@ func TestBuildFilterOptions_TrickyNames(t *testing.T) {
 		},
 		{
 			name:     "NativeWatermarkRotateAngle",
-			mutate:   func(o *Options) { o.NativeWatermarkRotateAngle = 450 },
+			mutate:   func(o *Options) { o.NativeWatermarkRotateAngle = new(450) },
 			unoName:  "WatermarkRotateAngle",
 			unoType:  "long",
 			unoValue: float64(450),
@@ -239,6 +241,45 @@ func TestBuildFilterOptions_Watermark(t *testing.T) {
 
 	if _, ok := props["TiledWatermark"]; ok {
 		t.Error("NativeWatermarkText must not set TiledWatermark")
+	}
+}
+
+// TestBuildFilterOptions_WatermarkZeros pins that a nil watermark color or
+// rotation keeps LibreOffice's default, while a pointer to 0 reaches it as
+// black or horizontal text. A font height of 0 stays out: LibreOffice fits the
+// text to the page only when the property is absent.
+func TestBuildFilterOptions_WatermarkZeros(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Options)
+		unoName string
+		// want is nil when the property must be absent.
+		want any
+	}{
+		{"color nil", func(*Options) {}, "WatermarkColor", nil},
+		{"color 0", func(o *Options) { o.NativeWatermarkColor = new(0) }, "WatermarkColor", float64(0)},
+		{"rotation nil", func(*Options) {}, "WatermarkRotateAngle", nil},
+		{"rotation 0", func(o *Options) { o.NativeWatermarkRotateAngle = new(0) }, "WatermarkRotateAngle", float64(0)},
+		{"font height 0", func(o *Options) { o.NativeWatermarkFontHeight = 0 }, "WatermarkFontHeight", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := DefaultOptions()
+			opts.NativeWatermarkText = "DRAFT"
+			tt.mutate(&opts)
+
+			props := parseFilterJSON(t, BuildFilterOptions(opts))
+
+			if tt.want == nil {
+				if prop, ok := props[tt.unoName]; ok {
+					t.Fatalf("%s = %v, want it absent", tt.unoName, prop)
+				}
+				return
+			}
+
+			assertProp(t, props, tt.unoName, "long", tt.want)
+		})
 	}
 }
 

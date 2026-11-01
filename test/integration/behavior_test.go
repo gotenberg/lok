@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gotenberg/litho/pkg/models"
+
 	"github.com/gotenberg/lok/pkg/lok"
 )
 
@@ -284,6 +285,52 @@ func TestBehavior_Watermarks(t *testing.T) {
 			t.Fatal("the tiled watermark left the first page unchanged")
 		}
 	})
+}
+
+// TestBehavior_WatermarkRotation confirms an explicit rotation of 0 reaches
+// LibreOffice: on the portrait document.docx, the default watermark runs
+// vertically, along the longer side, and rotation 0 draws it horizontal. The
+// watermark is the only text above 40 pt: the body text is 11 pt.
+func TestBehavior_WatermarkRotation(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	cases := []struct {
+		name     string
+		rotation *int
+		// horizontal is false when the text must run vertically.
+		horizontal bool
+	}{
+		{"default", nil, false},
+		{"rotation 0", new(0), true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			opts := lok.DefaultOptions()
+			opts.NativeWatermarkText = "ROTATEMARK"
+			opts.NativeWatermarkRotateAngle = c.rotation
+
+			var watermark strings.Builder
+			for _, e := range pdfTextElements(t, convertFixture(t, input, opts)) {
+				if e.FontSize < 40 {
+					continue
+				}
+
+				watermark.WriteString(e.Text)
+
+				if c.horizontal && !approxEqual(math.Cos(e.Angle), 1, 0.01) {
+					t.Errorf("watermark run %q is at %.1f degrees, want horizontal", e.Text, e.Angle*180/math.Pi)
+				}
+				if !c.horizontal && !approxEqual(math.Cos(e.Angle), 0, 0.01) {
+					t.Errorf("watermark run %q is at %.1f degrees, want vertical", e.Text, e.Angle*180/math.Pi)
+				}
+			}
+
+			if got := watermark.String(); got != "ROTATEMARK" {
+				t.Fatalf("watermark text = %q, want %q", got, "ROTATEMARK")
+			}
+		})
+	}
 }
 
 // TestBehavior_TaggedPdf confirms TaggedPdf, and PDFUniversalAccess through it,

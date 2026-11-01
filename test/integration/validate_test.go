@@ -67,6 +67,19 @@ func pdfText(t *testing.T, path string) string {
 	return text
 }
 
+// pdfTextElements returns the text runs of the first page with their
+// position, size and direction.
+func pdfTextElements(t *testing.T, path string) []models.TextElement {
+	t.Helper()
+
+	elements, err := openPDF(t, path).ExtractTextElements(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("extracting the text runs of %q: %v", path, err)
+	}
+
+	return elements
+}
+
 // pdfTagged reports whether the PDF declares itself a Tagged PDF.
 func pdfTagged(t *testing.T, path string) bool {
 	t.Helper()

@@ -175,19 +175,21 @@ type Options struct {
 	NativeWatermarkText string
 
 	// NativeWatermarkColor sets the watermark color as a 0xRRGGBB integer.
-	// 0 keeps LibreOffice's default color. Maps to UNO property
-	// "WatermarkColor".
-	NativeWatermarkColor int
+	// Nil keeps LibreOffice's default color, and 0 is black. Maps to UNO
+	// property "WatermarkColor".
+	NativeWatermarkColor *int
 
 	// NativeWatermarkFontHeight sets the watermark font height in points.
-	// 0 lets LibreOffice size it to the page. Maps to UNO property
-	// "WatermarkFontHeight".
+	// 0 lets LibreOffice fit the text to the page, so lok never passes it:
+	// LibreOffice would draw an explicit 0 at its 12 pt default. Maps to UNO
+	// property "WatermarkFontHeight".
 	NativeWatermarkFontHeight int
 
 	// NativeWatermarkRotateAngle sets the watermark rotation in tenths of a
-	// degree. 0 keeps LibreOffice's default angle. Maps to UNO property
-	// "WatermarkRotateAngle".
-	NativeWatermarkRotateAngle int
+	// degree, counterclockwise. Nil keeps LibreOffice's default, which runs
+	// the text along the longer side of the page, and 0 draws it horizontal.
+	// Maps to UNO property "WatermarkRotateAngle".
+	NativeWatermarkRotateAngle *int
 
 	// NativeWatermarkFontName sets the watermark font. Empty keeps
 	// LibreOffice's default font. Maps to UNO property "WatermarkFontName".
@@ -267,8 +269,9 @@ type filterProp struct {
 // BuildFilterOptions serializes non-default [Options] fields into a JSON string
 // suitable for LibreOffice's saveAs filter options parameter.
 //
-// Fields matching [DefaultOptions] are omitted. Landscape, Password, and
-// UpdateIndexes are not filter options and are always excluded.
+// Fields matching [DefaultOptions] are omitted, as are nil pointer fields.
+// Landscape, Password, and UpdateIndexes are not filter options and are
+// always excluded.
 //
 // Returns an empty string when all fields match defaults.
 func BuildFilterOptions(opts Options) string {
@@ -284,6 +287,14 @@ func BuildFilterOptions(opts Options) string {
 	addLong := func(name string, val, def int) {
 		if val != def {
 			props[name] = filterProp{Type: "long", Value: val}
+		}
+	}
+
+	// addOptLong sends a set pointer even when it points to the zero value:
+	// LibreOffice tells an unset property from 0.
+	addOptLong := func(name string, v *int) {
+		if v != nil {
+			props[name] = filterProp{Type: "long", Value: *v}
 		}
 	}
 
@@ -340,9 +351,9 @@ func BuildFilterOptions(opts Options) string {
 	addLong("Zoom", opts.Zoom, defaults.Zoom)
 	addLong("PageLayout", opts.PageLayout, defaults.PageLayout)
 	addLong("OpenBookmarkLevels", opts.OpenBookmarkLevels, defaults.OpenBookmarkLevels)
-	addLong("WatermarkColor", opts.NativeWatermarkColor, defaults.NativeWatermarkColor)
 	addLong("WatermarkFontHeight", opts.NativeWatermarkFontHeight, defaults.NativeWatermarkFontHeight)
-	addLong("WatermarkRotateAngle", opts.NativeWatermarkRotateAngle, defaults.NativeWatermarkRotateAngle)
+	addOptLong("WatermarkColor", opts.NativeWatermarkColor)
+	addOptLong("WatermarkRotateAngle", opts.NativeWatermarkRotateAngle)
 
 	if len(props) == 0 {
 		return ""

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -182,9 +183,9 @@ func defineFlags() *cliOptions {
 
 	// Watermark.
 	flag.StringVar(&o.NativeWatermarkText, "native-watermark-text", defaults.NativeWatermarkText, "Watermark text drawn once across each page")
-	flag.IntVar(&o.NativeWatermarkColor, "native-watermark-color", defaults.NativeWatermarkColor, "Watermark color as a 0xRRGGBB integer (0=LibreOffice default)")
+	flag.Func("native-watermark-color", "Watermark color as a `0xRRGGBB` integer (unset=LibreOffice default, 0=black)", setOptionalInt(&o.NativeWatermarkColor))
 	flag.IntVar(&o.NativeWatermarkFontHeight, "native-watermark-font-height", defaults.NativeWatermarkFontHeight, "Watermark font height in points (0=fit the page)")
-	flag.IntVar(&o.NativeWatermarkRotateAngle, "native-watermark-rotate-angle", defaults.NativeWatermarkRotateAngle, "Watermark rotation in tenths of a degree (0=LibreOffice default)")
+	flag.Func("native-watermark-rotate-angle", "Watermark rotation in `tenths` of a degree (unset=LibreOffice default, 0=horizontal)", setOptionalInt(&o.NativeWatermarkRotateAngle))
 	flag.StringVar(&o.NativeWatermarkFontName, "native-watermark-font-name", defaults.NativeWatermarkFontName, "Watermark font name (empty=LibreOffice default)")
 	flag.StringVar(&o.NativeTiledWatermarkText, "native-tiled-watermark-text", defaults.NativeTiledWatermarkText, "Watermark text tiled over each page")
 
@@ -205,6 +206,22 @@ func defineFlags() *cliOptions {
 	flag.IntVar(&o.OpenBookmarkLevels, "open-bookmark-levels", defaults.OpenBookmarkLevels, "Bookmark levels shown (-1=all)")
 
 	return opts
+}
+
+// setOptionalInt returns a [flag.Func] setter that points dst at the parsed
+// value, so a flag left off the command line keeps dst nil. It parses like
+// [flag.IntVar], hexadecimal included.
+func setOptionalInt(dst **int) func(string) error {
+	return func(s string) error {
+		v, err := strconv.ParseInt(s, 0, strconv.IntSize)
+		if err != nil {
+			return fmt.Errorf("parse integer: %w", err)
+		}
+
+		*dst = new(int(v))
+
+		return nil
+	}
 }
 
 // initOffice loads LibreOffice against the --user-profile-path directory when
@@ -473,9 +490,9 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 	setBool(&opts.TaggedPdf, req.TaggedPdf)
 	setBool(&opts.EmbedStandardFonts, req.EmbedStandardFonts)
 	setString(&opts.NativeWatermarkText, req.NativeWatermarkText)
-	setInt(&opts.NativeWatermarkColor, req.NativeWatermarkColor)
+	opts.NativeWatermarkColor = req.NativeWatermarkColor
 	setInt(&opts.NativeWatermarkFontHeight, req.NativeWatermarkFontHeight)
-	setInt(&opts.NativeWatermarkRotateAngle, req.NativeWatermarkRotateAngle)
+	opts.NativeWatermarkRotateAngle = req.NativeWatermarkRotateAngle
 	setString(&opts.NativeWatermarkFontName, req.NativeWatermarkFontName)
 	setString(&opts.NativeTiledWatermarkText, req.NativeTiledWatermarkText)
 	setBool(&opts.UseTransitionEffects, req.UseTransitionEffects)
