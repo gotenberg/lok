@@ -40,7 +40,7 @@ lint-prettier: ## Lint non-Golang codebase
 
 .PHONY: test-unit
 test-unit: ## Run unit tests in Docker
-	docker run --rm -v "$(CURDIR)":/src $(DOCKER_IMAGE) go test -race -count=1 -v ./pkg/lok/...
+	docker run --rm -v "$(CURDIR)":/src $(DOCKER_IMAGE) go test -race -count=1 -v ./pkg/lok/... ./cmd/...
 
 .PHONY: test-integration
 test-integration: ## Run integration tests in Docker
