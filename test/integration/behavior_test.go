@@ -5,6 +5,7 @@ package integration
 import (
 	"bytes"
 	"math"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -330,6 +331,26 @@ func TestBehavior_WatermarkRotation(t *testing.T) {
 				t.Fatalf("watermark text = %q, want %q", got, "ROTATEMARK")
 			}
 		})
+	}
+}
+
+// TestBehavior_PageLayout pins how LibreOffice writes PageLayout 3: always
+// /TwoColumnRight, since it resets FirstPageOnLeft. A change upstream fails
+// here. LibreOffice writes the catalog uncompressed, so the bytes carry it.
+func TestBehavior_PageLayout(t *testing.T) {
+	input := testdataPath(t, "document.docx")
+
+	opts := lok.DefaultOptions()
+	opts.PageLayout = 3
+	opts.FirstPageOnLeft = true
+
+	data, err := os.ReadFile(convertFixture(t, input, opts))
+	if err != nil {
+		t.Fatalf("reading the PDF: %v", err)
+	}
+
+	if !bytes.Contains(data, []byte("/PageLayout/TwoColumnRight")) {
+		t.Fatal("PageLayout 3 did not write /PageLayout/TwoColumnRight")
 	}
 }
 

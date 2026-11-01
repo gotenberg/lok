@@ -174,6 +174,13 @@ func TestBuildFilterOptions_TrickyNames(t *testing.T) {
 			unoType:  "boolean",
 			unoValue: true,
 		},
+		{
+			name:     "PageLayout",
+			mutate:   func(o *Options) { o.PageLayout = 3 },
+			unoName:  "PageLayout",
+			unoType:  "long",
+			unoValue: float64(3),
+		},
 	}
 
 	for _, tt := range tests {

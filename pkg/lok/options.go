@@ -211,10 +211,13 @@ type Options struct {
 	// Zoom sets the default zoom percentage.
 	Zoom int
 
-	// PageLayout sets the page layout (0=default, 1=single, 2=continuous, 3=two-left, 4=two-right).
+	// PageLayout sets the page layout the viewer opens with: 0 = default,
+	// 1 = SinglePage, 2 = OneColumn (continuous), 3 = TwoColumnRight (facing
+	// pages, odd pages on the right); other values = default.
 	PageLayout int
 
-	// FirstPageOnLeft places the first page on the left in two-page layout.
+	// FirstPageOnLeft has no effect: LibreOffice resets it, so a facing
+	// layout always opens on TwoColumnRight.
 	FirstPageOnLeft bool
 
 	// ResizeWindowToInitialPage resizes the viewer window to the first page.
