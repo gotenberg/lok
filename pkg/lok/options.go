@@ -240,6 +240,8 @@ type Options struct {
 	OpenInFullScreenMode bool
 
 	// DisplayPDFDocumentTitle shows the document title in the viewer title bar.
+	// Defaults to true, matching LibreOffice. LibreOffice writes
+	// /DisplayDocTitle true whatever the value when the PDF is PDF/UA.
 	DisplayPDFDocumentTitle bool
 
 	// HideViewerMenubar hides the menu bar in the PDF viewer.
@@ -288,8 +290,11 @@ func DefaultOptions() Options {
 		ReduceImageResolution: true,
 		Zoom:                  100,
 		UseTransitionEffects:  true,
-		OpenBookmarkLevels:    -1,
-		PaperFormat:           -1,
+		// LibreOffice's export filter reads DisplayPDFDocumentTitle with true
+		// as its default, so only false has to reach it.
+		DisplayPDFDocumentTitle: true,
+		OpenBookmarkLevels:      -1,
+		PaperFormat:             -1,
 	}
 }
 

@@ -21,6 +21,7 @@ func TestDefaultOptions(t *testing.T) {
 		{"MaxImageResolution", opts.MaxImageResolution, 300},
 		{"Zoom", opts.Zoom, 100},
 		{"UseTransitionEffects", opts.UseTransitionEffects, true},
+		{"DisplayPDFDocumentTitle", opts.DisplayPDFDocumentTitle, true},
 		{"OpenBookmarkLevels", opts.OpenBookmarkLevels, -1},
 		{"Landscape", opts.Landscape, false},
 		{"Password", opts.Password, ""},
@@ -609,4 +610,17 @@ func extractParameter(options, name string) string {
 	}
 
 	return options[:idx]
+}
+
+// TestBuildFilterOptions_DisplayPDFDocumentTitle pins that only false reaches
+// LibreOffice, whose default is true.
+func TestBuildFilterOptions_DisplayPDFDocumentTitle(t *testing.T) {
+	if result := BuildFilterOptions(DefaultOptions()); result != "" {
+		t.Fatalf("defaults produced filter options: %s", result)
+	}
+
+	opts := DefaultOptions()
+	opts.DisplayPDFDocumentTitle = false
+
+	assertProp(t, parseFilterJSON(t, BuildFilterOptions(opts)), "DisplayPDFDocumentTitle", "boolean", false)
 }

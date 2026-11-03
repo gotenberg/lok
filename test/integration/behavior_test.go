@@ -377,3 +377,31 @@ func TestBehavior_TaggedPdf(t *testing.T) {
 		})
 	}
 }
+
+// TestBehavior_DisplayPDFDocumentTitle pins that false removes
+// /DisplayDocTitle true from the catalog. LibreOffice writes it for a titled
+// document unless told otherwise, and always for PDF/UA. The catalog is
+// uncompressed, so the bytes carry it.
+func TestBehavior_DisplayPDFDocumentTitle(t *testing.T) {
+	input := testdataPath(t, "titled.fodt")
+
+	read := func(opts lok.Options) []byte {
+		data, err := os.ReadFile(convertFixture(t, input, opts))
+		if err != nil {
+			t.Fatalf("reading the PDF: %v", err)
+		}
+
+		return data
+	}
+
+	if !bytes.Contains(read(lok.DefaultOptions()), []byte("/DisplayDocTitle true")) {
+		t.Fatal("the default export writes no /DisplayDocTitle, so this test proves nothing")
+	}
+
+	opts := lok.DefaultOptions()
+	opts.DisplayPDFDocumentTitle = false
+
+	if bytes.Contains(read(opts), []byte("/DisplayDocTitle true")) {
+		t.Fatal("DisplayPDFDocumentTitle=false still writes /DisplayDocTitle true")
+	}
+}
