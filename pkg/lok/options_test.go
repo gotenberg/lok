@@ -2,6 +2,7 @@ package lok
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -515,4 +516,97 @@ func TestBuildLoadOptions_EnableMacros(t *testing.T) {
 	if result != "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0" {
 		t.Fatalf("expected Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0, got: %s", result)
 	}
+}
+
+func TestBuildLoadOptions_FilterOptions(t *testing.T) {
+	cases := []struct {
+		name  string
+		build func() Options
+		want  string
+	}{
+		{"none", DefaultOptions, "Batch=true"},
+		{"password", func() Options {
+			o := DefaultOptions()
+			o.Password = "secret"
+
+			return o
+		}, ""},
+		{"macros", func() Options {
+			o := DefaultOptions()
+			o.EnableMacros = true
+
+			return o
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0"},
+		{"csv", func() Options {
+			o := DefaultOptions()
+			o.FilterOptions = DefaultCSVFilterOptions
+
+			return o
+		}, "Batch=true," + DefaultCSVFilterOptions},
+		{"csv and password", func() Options {
+			o := DefaultOptions()
+			o.Password = "secret"
+			o.FilterOptions = DefaultCSVFilterOptions
+
+			return o
+		}, DefaultCSVFilterOptions},
+		{"all", func() Options {
+			o := DefaultOptions()
+			o.EnableMacros = true
+			o.FilterOptions = DefaultCSVFilterOptions
+
+			return o
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0," + DefaultCSVFilterOptions},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := BuildLoadOptions(c.build()); got != c.want {
+				t.Fatalf("BuildLoadOptions() = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestBuildLoadOptions_KnownKeysStayExtractable mirrors LibreOfficeKit's
+// extractParameter: the keys it consumes must come out and leave the filter
+// token, commas included, intact.
+func TestBuildLoadOptions_KnownKeysStayExtractable(t *testing.T) {
+	opts := DefaultOptions()
+	opts.EnableMacros = true
+	opts.FilterOptions = DefaultCSVFilterOptions
+
+	rest := BuildLoadOptions(opts)
+	for _, key := range []string{"Batch", "MacroSecurityLevel", "EnableMacrosExecution"} {
+		rest = extractParameter(rest, key)
+	}
+
+	if rest != DefaultCSVFilterOptions {
+		t.Fatalf("remaining options = %q, want %q", rest, DefaultCSVFilterOptions)
+	}
+}
+
+// extractParameter reproduces desktop::extractParameter from LibreOffice's
+// desktop/source/lib/init.cxx and returns the options without the parameter.
+func extractParameter(options, name string) string {
+	prefix := name + "="
+	if strings.HasPrefix(options, prefix) {
+		if i := strings.Index(options[len(prefix):], ","); i >= 0 {
+			return options[len(prefix)+i+1:]
+		}
+
+		return ""
+	}
+
+	idx := strings.Index(options, ","+prefix)
+	if idx < 0 {
+		return options
+	}
+
+	start := idx + len(prefix) + 1
+	if i := strings.Index(options[start:], ","); i >= 0 {
+		return options[:idx] + options[start+i:]
+	}
+
+	return options[:idx]
 }

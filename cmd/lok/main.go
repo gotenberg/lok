@@ -127,6 +127,7 @@ func defineFlags() *cliOptions {
 
 	// Document load options.
 	flag.StringVar(&o.Password, "password", "", "Document open password")
+	flag.StringVar(&o.FilterOptions, "filter-options", "", "LibreOffice import filter options (empty: the CSV token for a .csv input)")
 	flag.BoolVar(&o.EnableMacros, "enable-macros", false, "Run the document's macros, including load-event ones (trusted documents only)")
 
 	// Printer descriptor options.
@@ -270,6 +271,7 @@ type longRunningRequest struct {
 	// All Options fields are optional overrides.
 	Password                        *string `json:"password,omitempty"` //nolint:gosec // document open password, not a credential
 	EnableMacros                    *bool   `json:"enableMacros,omitempty"`
+	FilterOptions                   *string `json:"filterOptions,omitempty"`
 	Landscape                       *bool   `json:"landscape,omitempty"`
 	PaperFormat                     *int    `json:"paperFormat,omitempty"`
 	PaperWidth                      *int    `json:"paperWidth,omitempty"`
@@ -450,6 +452,7 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 	// Load options.
 	setString(&opts.Password, req.Password)
 	setBool(&opts.EnableMacros, req.EnableMacros)
+	setString(&opts.FilterOptions, req.FilterOptions)
 
 	// Printer descriptor.
 	setBool(&opts.Landscape, req.Landscape)

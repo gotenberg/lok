@@ -1,6 +1,10 @@
 package lok
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 // Convert loads a document, applies [Options], and exports to PDF. The office
 // must be initialized via [Init]. The caller is responsible for serializing
@@ -13,7 +17,15 @@ import "os"
 // (landscape, paper format and size), index refresh and the Calc header
 // suppression when requested. It exports to PDF with the filter options built
 // from opts.
+//
+// A .csv input (any case) loads with [DefaultCSVFilterOptions] when
+// [Options.FilterOptions] is empty. Other formats get no filter options by
+// default: the Writer text filter would read the CSV token as an encoding name.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
+	if opts.FilterOptions == "" && strings.EqualFold(filepath.Ext(inputPath), ".csv") {
+		opts.FilterOptions = DefaultCSVFilterOptions
+	}
+
 	// SinglePageSheets starts each sheet's single page at the workbook's saved
 	// scroll position, truncating everything above and to the left of it. Load
 	// a copy with that position reset to the top-left cell instead.

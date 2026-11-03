@@ -40,7 +40,7 @@ const (
 //     DisableCalcHeader, ShowTrackedChanges: applied to the document by a
 //     Basic macro before export. See [Convert].
 //   - Password: answers the document-password request on load.
-//   - EnableMacros: passed as document load options.
+//   - EnableMacros, FilterOptions: passed as document load options.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.
@@ -63,6 +63,16 @@ type Options struct {
 	// never run. Only enable it for trusted documents. Passed as document load
 	// options. Not a filter option.
 	EnableMacros bool
+
+	// FilterOptions sets the LibreOffice import filter options, passed
+	// through as the FilterOptions load property. Empty keeps the filter's
+	// defaults, except for a .csv input, where [Convert] uses
+	// [DefaultCSVFilterOptions]: LibreOfficeKit gives the CSV filter no
+	// separator otherwise, and every line lands in one cell. The value is
+	// filter specific, and other text filters read it differently (the Writer
+	// text filter takes an encoding name), so only set it for the format of the
+	// input. Not a filter option of the PDF export.
+	FilterOptions string
 
 	// DisableCalcHeader turns off the page header of every spreadsheet page
 	// style. Calc prints the sheet name there by default, and a plain-text
@@ -247,6 +257,26 @@ type Options struct {
 	// OpenBookmarkLevels sets how many bookmark levels are shown (-1=all).
 	OpenBookmarkLevels int
 }
+
+// DefaultCSVFilterOptions is the import filter token [Convert] applies to a
+// .csv input when [Options.FilterOptions] is empty.
+//
+// The token has ten comma-separated positions, as documented in the CSV filter
+// options of the LibreOffice developer guide
+// (https://wiki.documentfoundation.org/Documentation/DevGuide/Spreadsheet_Documents#Filter_Options_for_the_CSV_Filter):
+//
+//  1. Field separators as decimal ASCII codes joined by "/": 44 (comma), 59
+//     (semicolon) and 9 (tab).
+//  2. Text delimiter: 34 (").
+//  3. Character set: 76 (UTF-8).
+//  4. First line to import: 1.
+//  5. Cell formats per column: empty, so every column is detected.
+//  6. Language identifier: 0 (system default).
+//  7. Quoted field as text: false, so "1" in quotes is still a number.
+//  8. Detect special numbers: true, so dates and similar are recognized.
+//  9. Save cell contents as shown: true.
+//  10. Remove spaces: false, so leading and trailing spaces are kept.
+const DefaultCSVFilterOptions = "44/59/9,34,76,1,,0,false,true,true,false"
 
 // DefaultOptions returns [Options] with default values matching LibreOffice's
 // built-in PDF export defaults.
@@ -435,6 +465,11 @@ func paperFormatDimensions(f PaperFormat) (width, height int) {
 // Format: comma-separated key=value pairs. The password is not a load
 // option: LibreOfficeKit ignores it there, so [Convert] answers the
 // document-password request instead.
+//
+// [Options.FilterOptions] comes last. LibreOfficeKit removes the keys it knows
+// (Language, Timezone, Batch, MacroSecurityLevel, ClientVisibleArea and
+// EnableMacrosExecution) wherever they sit, and hands the rest to the import
+// filter as its FilterOptions property, commas included.
 func BuildLoadOptions(opts Options) string {
 	var parts []string
 
@@ -450,6 +485,10 @@ func BuildLoadOptions(opts Options) string {
 	// runs macros without asking, since nothing can answer a prompt.
 	if opts.EnableMacros {
 		parts = append(parts, "EnableMacrosExecution=true", "MacroSecurityLevel=0")
+	}
+
+	if opts.FilterOptions != "" {
+		parts = append(parts, opts.FilterOptions)
 	}
 
 	return strings.Join(parts, ",")
