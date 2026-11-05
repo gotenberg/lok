@@ -63,5 +63,8 @@ changelog:
 # title and notes, and only attach the archives.
 release:
   mode: keep-existing
+  # Every release is a pre-release. goreleaser sets the flag on the release
+  # it uploads to, so without this it would clear it.
+  prerelease: true
   extra_files:
     - glob: ./install.sh

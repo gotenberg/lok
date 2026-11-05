@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/gotenberg/lok/main/install.sh | sh
 #
 # Environment:
-#   LOK_VERSION      release tag to install, for example v1.2.3 (default: latest)
+#   LOK_VERSION      release tag to install, for example v1.2.3 (default: the newest release)
 #   LOK_INSTALL_DIR  directory for the binary (default: /usr/local/bin)
 #
 # Supports Linux on amd64, 386, arm64, armv7 and ppc64le, the platforms
@@ -51,14 +51,14 @@ else
   fail "sha256sum or shasum is required"
 fi
 
-# The latest-release page redirects to the tag, which avoids the rate-limited
-# GitHub API.
+# Every release is a pre-release, which the latest-release page skips. The
+# releases feed lists them newest first, and avoids the rate-limited GitHub API.
 tag="${LOK_VERSION:-}"
 if [ -z "$tag" ]; then
-  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "${RELEASES}/latest")" \
-    || fail "no published release found at ${RELEASES}"
-  tag="${tag##*/}"
-  [ -n "$tag" ] && [ "$tag" != "latest" ] || fail "no published release found"
+  feed="$(curl -fsSL "${RELEASES}.atom")" \
+    || fail "cannot read the releases at ${RELEASES}"
+  tag="$(printf '%s\n' "$feed" | sed -n 's|.*/releases/tag/\([^"]*\)".*|\1|p' | head -n 1)"
+  [ -n "$tag" ] || fail "no published release found at ${RELEASES}"
 fi
 
 archive="lok_${tag#v}_${os}_${arch}.tar.gz"
