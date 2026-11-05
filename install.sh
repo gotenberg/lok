@@ -6,6 +6,7 @@
 # Environment:
 #   LOK_VERSION      release tag to install, for example v1.2.3 (default: the newest release)
 #   LOK_INSTALL_DIR  directory for the binary (default: /usr/local/bin)
+#   LOK_ARCH         amd64, 386, arm64, armv7 or ppc64le (default: detected)
 #
 # Supports Linux on amd64, 386, arm64, armv7 and ppc64le, the platforms
 # Gotenberg ships. The binary needs glibc 2.34+ and LibreOffice at runtime.
@@ -34,14 +35,26 @@ case "$(uname -s)" in
   *) fail "unsupported OS $(uname -s); lok only runs on Linux" ;;
 esac
 
-case "$(uname -m)" in
-  x86_64 | amd64) arch=amd64 ;;
-  i386 | i686) arch=386 ;;
-  arm64 | aarch64) arch=arm64 ;;
-  armv7l | armv8l) arch=armv7 ;;
-  ppc64le) arch=ppc64le ;;
-  *) fail "unsupported architecture $(uname -m); see ${RELEASES}" ;;
-esac
+# The architecture is the userland's, which uname reports wrong where a kernel
+# runs a foreign userland natively: an arm64 kernel running an armv7 image, or
+# an amd64 kernel a 386 one, as a multi-platform Docker build does. dpkg knows
+# the userland's architecture; LOK_ARCH states it where dpkg is absent.
+arch="${LOK_ARCH:-}"
+if [ -z "$arch" ]; then
+  if command -v dpkg > /dev/null 2>&1; then
+    machine="$(dpkg --print-architecture)"
+  else
+    machine="$(uname -m)"
+  fi
+  case "$machine" in
+    x86_64 | amd64) arch=amd64 ;;
+    i386 | i686) arch=386 ;;
+    arm64 | aarch64) arch=arm64 ;;
+    armhf | armv7l | armv8l) arch=armv7 ;;
+    ppc64le | ppc64el) arch=ppc64le ;;
+    *) fail "unsupported architecture ${machine}; see ${RELEASES}" ;;
+  esac
+fi
 
 if command -v sha256sum > /dev/null 2>&1; then
   sha256() { sha256sum "$1" | cut -d' ' -f1; }
@@ -87,4 +100,8 @@ fi
 $sudo mkdir -p "$INSTALL_DIR"
 $sudo install -m 0755 "${tmp}/lok" "${INSTALL_DIR}/lok"
 
-echo "Installed $("${INSTALL_DIR}/lok" --version) to ${INSTALL_DIR}/lok"
+# A binary of the wrong architecture installs fine and fails to run: check it
+# runs rather than report what the shell says about it.
+version="$("${INSTALL_DIR}/lok" --version)" \
+  || fail "${INSTALL_DIR}/lok does not run here: it is built for ${arch}; set LOK_ARCH to this userland's architecture (amd64, 386, arm64, armv7 or ppc64le) and check glibc is 2.34+"
+echo "Installed ${version} to ${INSTALL_DIR}/lok"
