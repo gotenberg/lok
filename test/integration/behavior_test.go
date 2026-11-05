@@ -4,6 +4,7 @@ package integration
 
 import (
 	"bytes"
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -227,6 +228,38 @@ func TestBehavior_UpdateIndexes(t *testing.T) {
 	opts.UpdateIndexes = true
 
 	convertFixture(t, input, opts)
+}
+
+// TestBehavior_DocumentMacrosStayOff validates that a document's own macros
+// never run by default, while the conversion, preparation macro included,
+// still succeeds. The load event of macro-onload.odt runs a Basic macro that
+// writes the file LOK_TEST_MACRO_MARKER names.
+func TestBehavior_DocumentMacrosStayOff(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "marker")
+	t.Setenv("LOK_TEST_MACRO_MARKER", marker)
+
+	convertFixture(t, testdataPath(t, "macro-onload.odt"), lok.DefaultOptions())
+
+	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the document's load macro ran: stat %s: %v", marker, err)
+	}
+}
+
+// TestBehavior_DocumentMacrosRunWhenEnabled is the control for
+// [TestBehavior_DocumentMacrosStayOff]: with EnableMacros, the document's load
+// macro writes the marker.
+func TestBehavior_DocumentMacrosRunWhenEnabled(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "marker")
+	t.Setenv("LOK_TEST_MACRO_MARKER", marker)
+
+	opts := lok.DefaultOptions()
+	opts.EnableMacros = true
+
+	convertFixture(t, testdataPath(t, "macro-onload.odt"), opts)
+
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("the document's load macro did not run: %v", err)
+	}
 }
 
 // TestBehavior_OptionsApplyPerConversion validates that Options take effect on

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/gotenberg/lok/pkg/lok/internal/cgo"
@@ -200,8 +201,11 @@ func setEnv(key, value string) func() {
 	}
 }
 
-// LoadDocument opens a document at the given file path. The returned
-// [Document] must be closed by the caller when no longer needed.
+// LoadDocument opens a document at the given file path.
+// The returned [Document] must be closed by the caller when no longer needed.
+//
+// Every load keeps the document's macros off unless its options set
+// EnableMacrosExecution themselves. See [BuildLoadOptions].
 func (o *Office) LoadDocument(path string) (*Document, error) {
 	return o.load(path, "", "")
 }
@@ -232,6 +236,14 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 
 	if o.closed {
 		return nil, ErrOfficeDestroyed
+	}
+
+	// A single load without EnableMacrosExecution disables macros for the
+	// whole process since LibreOffice 26.8.2, so that every later conversion
+	// fails to run the preparation macro. Options that set it decide for
+	// themselves.
+	if !hasLoadParameter(options, "EnableMacrosExecution") {
+		options = strings.TrimSuffix(documentMacrosOff+","+options, ",")
 	}
 
 	doc, err := o.internal.LoadDocument(path, options, password)

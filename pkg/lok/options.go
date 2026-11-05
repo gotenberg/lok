@@ -59,9 +59,9 @@ type Options struct {
 	UpdateIndexes bool
 
 	// EnableMacros runs the document's macros, including the ones bound to
-	// document events such as load, without asking. Defaults to false: macros
-	// never run. Only enable it for trusted documents. Passed as document load
-	// options. Not a filter option.
+	// document events such as load, without asking. Defaults to false: the
+	// document's macros never run. Only enable it for trusted documents.
+	// Passed as document load options. Not a filter option.
 	EnableMacros bool
 
 	// FilterOptions sets the LibreOffice import filter options, passed
@@ -461,11 +461,38 @@ func paperFormatDimensions(f PaperFormat) (width, height int) {
 	}
 }
 
+// The macro load options. LibreOfficeKit reads EnableMacrosExecution and
+// MacroSecurityLevel, and resets the security level to 1 (medium: ask first)
+// on every load.
+//
+// EnableMacrosExecution is always true. Without it, LibreOffice 26.8.2 and
+// later also set the process-wide DisableMacrosExecution, which refuses every
+// macro from then on, including the Basic macro that prepares the document
+// before export. The security level decides instead: 3 (very high) runs a
+// document's macros only from a trusted location, and the profile lists none,
+// so they never run; 0 runs them without asking, since nothing can answer a
+// prompt. With the process-wide switch left off, a document event can still
+// call an application or shared script, as before LibreOffice 26.8.2.
+const (
+	documentMacrosOff = "EnableMacrosExecution=true,MacroSecurityLevel=3"
+	documentMacrosOn  = "EnableMacrosExecution=true,MacroSecurityLevel=0"
+)
+
+// hasLoadParameter reports whether options sets name, the way LibreOfficeKit
+// looks for it: at the start, or after a comma.
+func hasLoadParameter(options, name string) bool {
+	return strings.HasPrefix(options, name+"=") || strings.Contains(options, ","+name+"=")
+}
+
 // BuildLoadOptions builds a document load options string from [Options].
 //
 // It sets Batch=true unless a password is set. Without it, LibreOfficeKit
 // waits on import dialogs a headless process cannot answer, such as Calc's
 // text import dialog for a CSV, and the load never returns.
+//
+// It always sets EnableMacrosExecution=true, with MacroSecurityLevel=3 unless
+// [Options.EnableMacros] lowers it to 0, so that the document's macros stay
+// off without blocking the macro that prepares the document.
 //
 // Format: comma-separated key=value pairs. The password is not a load
 // option: LibreOfficeKit ignores it there, so [Convert] answers the
@@ -485,11 +512,13 @@ func BuildLoadOptions(opts Options) string {
 		parts = append(parts, "Batch=true")
 	}
 
-	// LibreOfficeKit reads EnableMacrosExecution and MacroSecurityLevel, and
-	// resets the security level to 1 (medium: ask first) on every load. Level 0
-	// runs macros without asking, since nothing can answer a prompt.
+	// The macro keys come before [Options.FilterOptions], so that they hold
+	// when the filter options repeat them: LibreOfficeKit reads the first
+	// occurrence.
 	if opts.EnableMacros {
-		parts = append(parts, "EnableMacrosExecution=true", "MacroSecurityLevel=0")
+		parts = append(parts, documentMacrosOn)
+	} else {
+		parts = append(parts, documentMacrosOff)
 	}
 
 	if opts.FilterOptions != "" {

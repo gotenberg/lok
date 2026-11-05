@@ -491,8 +491,8 @@ func TestPaperFormatDimensions(t *testing.T) {
 
 func TestBuildLoadOptions_Defaults(t *testing.T) {
 	result := BuildLoadOptions(DefaultOptions())
-	if result != "Batch=true" {
-		t.Fatalf("expected Batch=true for defaults, got: %s", result)
+	if result != "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3" {
+		t.Fatalf("expected Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3 for defaults, got: %s", result)
 	}
 }
 
@@ -504,8 +504,8 @@ func TestBuildLoadOptions_PasswordIsNotALoadOption(t *testing.T) {
 	opts.Password = "secret"
 
 	// Batch would make the load silent and skip the password request.
-	if result := BuildLoadOptions(opts); result != "" {
-		t.Fatalf("expected no load options, got: %s", result)
+	if result := BuildLoadOptions(opts); result != "EnableMacrosExecution=true,MacroSecurityLevel=3" {
+		t.Fatalf("expected only the macro keys, got: %s", result)
 	}
 }
 
@@ -525,13 +525,13 @@ func TestBuildLoadOptions_FilterOptions(t *testing.T) {
 		build func() Options
 		want  string
 	}{
-		{"none", DefaultOptions, "Batch=true"},
+		{"none", DefaultOptions, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3"},
 		{"password", func() Options {
 			o := DefaultOptions()
 			o.Password = "secret"
 
 			return o
-		}, ""},
+		}, "EnableMacrosExecution=true,MacroSecurityLevel=3"},
 		{"macros", func() Options {
 			o := DefaultOptions()
 			o.EnableMacros = true
@@ -543,14 +543,20 @@ func TestBuildLoadOptions_FilterOptions(t *testing.T) {
 			o.FilterOptions = DefaultCSVFilterOptions
 
 			return o
-		}, "Batch=true," + DefaultCSVFilterOptions},
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3," + DefaultCSVFilterOptions},
 		{"csv and password", func() Options {
 			o := DefaultOptions()
 			o.Password = "secret"
 			o.FilterOptions = DefaultCSVFilterOptions
 
 			return o
-		}, DefaultCSVFilterOptions},
+		}, "EnableMacrosExecution=true,MacroSecurityLevel=3," + DefaultCSVFilterOptions},
+		{"filter options cannot lower the macro level", func() Options {
+			o := DefaultOptions()
+			o.FilterOptions = "EnableMacrosExecution=true,MacroSecurityLevel=0"
+
+			return o
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3,EnableMacrosExecution=true,MacroSecurityLevel=0"},
 		{"all", func() Options {
 			o := DefaultOptions()
 			o.EnableMacros = true
@@ -623,4 +629,24 @@ func TestBuildFilterOptions_DisplayPDFDocumentTitle(t *testing.T) {
 	opts.DisplayPDFDocumentTitle = false
 
 	assertProp(t, parseFilterJSON(t, BuildFilterOptions(opts)), "DisplayPDFDocumentTitle", "boolean", false)
+}
+
+// TestHasLoadParameter mirrors where LibreOfficeKit's extractParameter looks
+// for a key: at the start of the options, or right after a comma.
+func TestHasLoadParameter(t *testing.T) {
+	for _, tc := range []struct {
+		options string
+		want    bool
+	}{
+		{"", false},
+		{"EnableMacrosExecution=true", true},
+		{"Batch=true,EnableMacrosExecution=false", true},
+		{"Batch=true", false},
+		{"XEnableMacrosExecution=true", false},
+		{"Batch=true,FilterEnableMacrosExecution=true", false},
+	} {
+		if got := hasLoadParameter(tc.options, "EnableMacrosExecution"); got != tc.want {
+			t.Errorf("hasLoadParameter(%q) = %t, want %t", tc.options, got, tc.want)
+		}
+	}
 }
