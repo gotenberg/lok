@@ -2,8 +2,8 @@
 
 Go library and CLI providing CGO bindings to [LibreOfficeKit](https://docs.libreoffice.org/libreofficekit.html) for document-to-PDF conversion. It loads LibreOffice as an in-process shared library via `dlopen`, eliminating the need for Python or UNO sockets.
 
-> [!WARNING]
-> This package is a work in progress. The API is unstable and may change without notice. It is planned to replace [unoconverter](https://github.com/gotenberg/unoconverter) in [Gotenberg](https://github.com/gotenberg/gotenberg) v9.
+> [!NOTE]
+> lok powers the LibreOffice conversions of [Gotenberg](https://github.com/gotenberg/gotenberg) 9. Its API is pre-1.0 and may change between releases.
 
 ## Prerequisites
 
