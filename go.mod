@@ -2,7 +2,7 @@ module github.com/gotenberg/lok
 
 go 1.27.3
 
-require github.com/gotenberg/litho v0.0.7
+require github.com/gotenberg/litho v0.0.9
 
 require (
 	github.com/andybalholm/brotli v1.2.8 // indirect

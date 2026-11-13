@@ -20,8 +20,8 @@ github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8/go.mod h1:wcDNUv
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/pprof v0.0.0-20261105003125-4bf881d7fb0b h1:5NKFt6kcAJNVt3XBOf8jwp8TnWZVOZFmmGkK0XextI4=
 github.com/google/pprof v0.0.0-20261105003125-4bf881d7fb0b/go.mod h1:yUo1AMMpsPIDFGuwDK8nLcf8+vvAd5l2O6JDZ6hpwrM=
-github.com/gotenberg/litho v0.0.7 h1:FbskPwLHTnr3EuGX04cbmNi9EY9gHij694M7Zc3Abn4=
-github.com/gotenberg/litho v0.0.7/go.mod h1:LVl8q/B9/17/cyXjo/1Qm/7MaaodDD7++IV0433xrDI=
+github.com/gotenberg/litho v0.0.9 h1:jX8id4BzdOJVZaV1BAnwevtGM5EFoalQVonK/cmCiGw=
+github.com/gotenberg/litho v0.0.9/go.mod h1:BYtOYpLnI02JzPt4FbeozPgTz1OrCPyyao5kAoEpn4Y=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
