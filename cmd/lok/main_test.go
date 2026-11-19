@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"testing"
+
+	"github.com/gotenberg/lok/pkg/lok"
 )
 
 // TestBuildOptsFromRequest_WatermarkZeros pins that a long-running request
@@ -89,5 +91,28 @@ func assertOptionalInt(t *testing.T, name string, got, want *int) {
 		t.Errorf("%s = nil, want %d", name, *want)
 	case want != nil && *got != *want:
 		t.Errorf("%s = %d, want %d", name, *got, *want)
+	}
+}
+
+// TestBuildOptsFromRequest_Locale pins that a long-running request sets the
+// locale, and that an absent one keeps the system locale.
+func TestBuildOptsFromRequest_Locale(t *testing.T) {
+	for line, want := range map[string]string{`{}`: "", `{"locale":"en-AU"}`: "en-AU"} {
+		var req longRunningRequest
+		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			t.Fatalf("decoding %s: %v", line, err)
+		}
+
+		if got := buildOptsFromRequest(req).Locale; got != want {
+			t.Errorf("%s: Locale = %q, want %q", line, got, want)
+		}
+	}
+}
+
+// TestFailure_InvalidLocale pins that an invalid locale is the caller's
+// mistake, not a load failure.
+func TestFailure_InvalidLocale(t *testing.T) {
+	if got := failure(lok.ValidateLocale("en-AU,Batch=false")).Code; got != codeInvalidRequest {
+		t.Errorf("code = %q, want %q", got, codeInvalidRequest)
 	}
 }

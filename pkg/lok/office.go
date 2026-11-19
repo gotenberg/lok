@@ -26,6 +26,11 @@ type Office struct {
 	internal       *cgo.Office
 	closed         bool
 	managedProfile string
+
+	// localeSet reports that the process locale may differ from the system
+	// locale: LibreOfficeKit sets it to en-US at startup, and on every load
+	// with a Language option.
+	localeSet bool
 }
 
 // Environment variables the preparation macro reads.
@@ -70,7 +75,7 @@ func Init(programPath string) (*Office, error) {
 		return nil, err
 	}
 
-	return &Office{internal: internal, managedProfile: profileDir}, nil
+	return &Office{internal: internal, managedProfile: profileDir, localeSet: true}, nil
 }
 
 // InitWithUserProfile loads LibreOffice with a custom user profile directory.
@@ -91,7 +96,7 @@ func InitWithUserProfile(programPath, profilePath string) (*Office, error) {
 		return nil, err
 	}
 
-	return &Office{internal: internal}, nil
+	return &Office{internal: internal, localeSet: true}, nil
 }
 
 // initWithProfile installs the geometry macro into profileDir and initializes
@@ -212,6 +217,11 @@ func (o *Office) LoadDocument(path string) (*Document, error) {
 
 // LoadDocumentWithOptions opens a document with additional load options.
 // The returned [Document] must be closed by the caller when no longer needed.
+//
+// A Language option sets the locale of the whole process, and LibreOfficeKit
+// keeps it for later loads. A load without one therefore first puts the
+// system locale back, the one soffice uses, so that it formats as if no
+// earlier load had set a language.
 func (o *Office) LoadDocumentWithOptions(path, options string) (*Document, error) {
 	return o.load(path, options, "")
 }
@@ -246,6 +256,16 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 		options = strings.TrimSuffix(documentMacrosOff+","+options, ",")
 	}
 
+	if hasLoadParameter(options, "Language") {
+		// LibreOfficeKit applies the language before it opens the file, so it
+		// sticks even when the load fails.
+		o.localeSet = true
+	} else if o.localeSet {
+		if err := o.resetLocale(); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
+		}
+	}
+
 	doc, err := o.internal.LoadDocument(path, options, password)
 	if errors.Is(err, cgo.ErrPasswordRejected) {
 		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, ErrInvalidPassword)
@@ -256,6 +276,29 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 	}
 
 	return &Document{internal: doc, office: o}, nil
+}
+
+// resetLocale puts the system locale back. Emptying the configuration key
+// alone leaves the separators and day names of the previous language in
+// place: only a load with a Language option resets them. It loads an empty
+// spreadsheet with en-US, the language LibreOfficeKit starts with, then
+// empties the key, which makes LibreOffice follow the system locale again.
+// The caller holds o.mu.
+func (o *Office) resetLocale() error {
+	doc, err := o.internal.LoadDocument("private:factory/scalc", "Batch=true,"+documentMacrosOff+",Language=en-US", "")
+	if err != nil {
+		return fmt.Errorf("resetting locale: %w", err)
+	}
+
+	doc.Destroy()
+
+	if err := o.internal.RunMacro(profile.ResetLocaleMacroURL); err != nil {
+		return fmt.Errorf("resetting locale: %w", err)
+	}
+
+	o.localeSet = false
+
+	return nil
 }
 
 // TrimMemory asks LibreOffice to release cached memory. The target parameter

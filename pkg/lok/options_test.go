@@ -2,6 +2,7 @@ package lok
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -557,13 +558,27 @@ func TestBuildLoadOptions_FilterOptions(t *testing.T) {
 
 			return o
 		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3,EnableMacrosExecution=true,MacroSecurityLevel=0"},
+		{"locale", func() Options {
+			o := DefaultOptions()
+			o.Locale = "en-AU"
+
+			return o
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3,Language=en-AU"},
+		{"filter options cannot override the locale", func() Options {
+			o := DefaultOptions()
+			o.Locale = "en-AU"
+			o.FilterOptions = "Language=de-DE"
+
+			return o
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=3,Language=en-AU,Language=de-DE"},
 		{"all", func() Options {
 			o := DefaultOptions()
 			o.EnableMacros = true
+			o.Locale = "de-DE"
 			o.FilterOptions = DefaultCSVFilterOptions
 
 			return o
-		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0," + DefaultCSVFilterOptions},
+		}, "Batch=true,EnableMacrosExecution=true,MacroSecurityLevel=0,Language=de-DE," + DefaultCSVFilterOptions},
 	}
 
 	for _, c := range cases {
@@ -581,10 +596,11 @@ func TestBuildLoadOptions_FilterOptions(t *testing.T) {
 func TestBuildLoadOptions_KnownKeysStayExtractable(t *testing.T) {
 	opts := DefaultOptions()
 	opts.EnableMacros = true
+	opts.Locale = "zh-Hans-CN"
 	opts.FilterOptions = DefaultCSVFilterOptions
 
 	rest := BuildLoadOptions(opts)
-	for _, key := range []string{"Batch", "MacroSecurityLevel", "EnableMacrosExecution"} {
+	for _, key := range []string{"Batch", "MacroSecurityLevel", "EnableMacrosExecution", "Language"} {
 		rest = extractParameter(rest, key)
 	}
 
@@ -647,6 +663,22 @@ func TestHasLoadParameter(t *testing.T) {
 	} {
 		if got := hasLoadParameter(tc.options, "EnableMacrosExecution"); got != tc.want {
 			t.Errorf("hasLoadParameter(%q) = %t, want %t", tc.options, got, tc.want)
+		}
+	}
+}
+
+// TestValidateLocale pins the language tags lok accepts, and that nothing
+// able to add a load option gets through.
+func TestValidateLocale(t *testing.T) {
+	for _, locale := range []string{"", "fr", "en-AU", "de-DE", "es-419", "zh-Hans", "zh-Hans-CN", "ast-ES"} {
+		if err := ValidateLocale(locale); err != nil {
+			t.Errorf("ValidateLocale(%q) = %v, want nil", locale, err)
+		}
+	}
+
+	for _, locale := range []string{"e", "english", "en_AU", "en-AU,Batch=false", "en-AU=", " en-AU", "en-AU ", "en-", "en-A", "en-1234", "de-DE-1996", "x-private"} {
+		if err := ValidateLocale(locale); !errors.Is(err, ErrInvalidLocale) {
+			t.Errorf("ValidateLocale(%q) = %v, want ErrInvalidLocale", locale, err)
 		}
 	}
 }

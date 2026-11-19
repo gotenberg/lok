@@ -16,6 +16,10 @@ var moduleXBA string
 // MacroURL is the runMacro URL of the document-preparation macro.
 const MacroURL = "macro:///Standard.LokGeometry.Prepare"
 
+// ResetLocaleMacroURL is the runMacro URL of the macro that empties the
+// system locale.
+const ResetLocaleMacroURL = "macro:///Standard.LokGeometry.ResetLocale"
+
 // Install establishes the profile at profileDir using the LibreOffice in
 // programPath, then adds the geometry macro to its Standard Basic library.
 func Install(programPath, profileDir string) error {

@@ -129,6 +129,7 @@ func defineFlags() *cliOptions {
 	flag.StringVar(&o.Password, "password", "", "Document open password")
 	flag.StringVar(&o.FilterOptions, "filter-options", "", "LibreOffice import filter options (empty: the CSV token for a .csv input)")
 	flag.BoolVar(&o.EnableMacros, "enable-macros", false, "Run the document's macros, including load-event ones (trusted documents only)")
+	flag.StringVar(&o.Locale, "locale", "", "BCP 47 language tag for locale-dependent formats and the fallback paper size, e.g., \"en-AU\" (empty: the system locale)")
 
 	// Printer descriptor options.
 	flag.BoolVar(&o.Landscape, "landscape", false, "Set landscape orientation")
@@ -272,6 +273,7 @@ type longRunningRequest struct {
 	Password                        *string `json:"password,omitempty"` //nolint:gosec // document open password, not a credential
 	EnableMacros                    *bool   `json:"enableMacros,omitempty"`
 	FilterOptions                   *string `json:"filterOptions,omitempty"`
+	Locale                          *string `json:"locale,omitempty"`
 	Landscape                       *bool   `json:"landscape,omitempty"`
 	PaperFormat                     *int    `json:"paperFormat,omitempty"`
 	PaperWidth                      *int    `json:"paperWidth,omitempty"`
@@ -351,6 +353,8 @@ func failure(err error) longRunningResponse {
 	code := codeUnknown
 
 	switch {
+	case errors.Is(err, lok.ErrInvalidLocale):
+		code = codeInvalidRequest
 	case errors.Is(err, lok.ErrInvalidPassword):
 		code = codeInvalidPassword
 	case errors.Is(err, lok.ErrLoadFailed):
@@ -453,6 +457,7 @@ func buildOptsFromRequest(req longRunningRequest) lok.Options {
 	setString(&opts.Password, req.Password)
 	setBool(&opts.EnableMacros, req.EnableMacros)
 	setString(&opts.FilterOptions, req.FilterOptions)
+	setString(&opts.Locale, req.Locale)
 
 	// Printer descriptor.
 	setBool(&opts.Landscape, req.Landscape)

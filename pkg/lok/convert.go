@@ -18,10 +18,18 @@ import (
 // suppression when requested. It exports to PDF with the filter options built
 // from opts.
 //
+// It rejects an invalid [Options.Locale] with [ErrInvalidLocale] before
+// loading. A conversion without a locale is not affected by an earlier one
+// that set it. See [Office.LoadDocumentWithOptions].
+//
 // A .csv input (any case) loads with [DefaultCSVFilterOptions] when
 // [Options.FilterOptions] is empty. Other formats get no filter options by
 // default: the Writer text filter would read the CSV token as an encoding name.
 func Convert(office *Office, inputPath, outputPath string, opts Options) error {
+	if err := ValidateLocale(opts.Locale); err != nil {
+		return err
+	}
+
 	if opts.FilterOptions == "" && strings.EqualFold(filepath.Ext(inputPath), ".csv") {
 		opts.FilterOptions = DefaultCSVFilterOptions
 	}

@@ -73,4 +73,16 @@ Sub Prepare
     End If
   Loop
 End Sub
+&apos; Empties the system locale, so that formats and the fallback paper size
+&apos; follow the operating system again, as in soffice. LibreOfficeKit sets it on
+&apos; every load with a Language option, and keeps it for the next loads.
+Sub ResetLocale
+  Dim oAccess
+  Dim args(0) As New com.sun.star.beans.PropertyValue
+  args(0).Name = &quot;nodepath&quot;
+  args(0).Value = &quot;/org.openoffice.Setup/L10N&quot;
+  oAccess = createUnoService(&quot;com.sun.star.configuration.ConfigurationProvider&quot;).createInstanceWithArguments(&quot;com.sun.star.configuration.ConfigurationUpdateAccess&quot;, args())
+  oAccess.ooSetupSystemLocale = &quot;&quot;
+  oAccess.commitChanges()
+End Sub
 </script:module>

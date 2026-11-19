@@ -3,6 +3,7 @@ package lok
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -40,7 +41,7 @@ const (
 //     DisableCalcHeader, ShowTrackedChanges: applied to the document by a
 //     Basic macro before export. See [Convert].
 //   - Password: answers the document-password request on load.
-//   - EnableMacros, FilterOptions: passed as document load options.
+//   - EnableMacros, FilterOptions, Locale: passed as document load options.
 type Options struct {
 	// Landscape sets the page orientation to landscape before export.
 	// Not a filter option.
@@ -73,6 +74,15 @@ type Options struct {
 	// text filter takes an encoding name), so only set it for the format of the
 	// input. Not a filter option of the PDF export.
 	FilterOptions string
+
+	// Locale formats the document's locale-dependent content as a BCP 47
+	// language tag such as "en-AU" or "de-DE": built-in date, time, number and
+	// currency formats, date fields, and the fallback paper size of a document
+	// that sets none. Content that carries its own language keeps it. Empty
+	// follows the system locale, as soffice does. [Convert] rejects a value
+	// that is not a language tag with [ErrInvalidLocale]. Passed as the
+	// Language load option. Not a filter option.
+	Locale string
 
 	// DisableCalcHeader turns off the page header of every spreadsheet page
 	// style. Calc prints the sheet name there by default, and a plain-text
@@ -478,6 +488,22 @@ const (
 	documentMacrosOn  = "EnableMacrosExecution=true,MacroSecurityLevel=0"
 )
 
+// localePattern matches the language tags [Options.Locale] accepts: a language
+// subtag, an optional script and an optional region, such as "fr", "en-AU",
+// "es-419" or "zh-Hans-CN". It keeps the separators of the load options out
+// of the value.
+var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
+
+// ValidateLocale returns [ErrInvalidLocale] when locale is neither empty nor a
+// language tag [Options.Locale] accepts.
+func ValidateLocale(locale string) error {
+	if locale == "" || localePattern.MatchString(locale) {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %q", ErrInvalidLocale, locale)
+}
+
 // hasLoadParameter reports whether options sets name, the way LibreOfficeKit
 // looks for it: at the start, or after a comma.
 func hasLoadParameter(options, name string) bool {
@@ -493,6 +519,9 @@ func hasLoadParameter(options, name string) bool {
 // It always sets EnableMacrosExecution=true, with MacroSecurityLevel=3 unless
 // [Options.EnableMacros] lowers it to 0, so that the document's macros stay
 // off without blocking the macro that prepares the document.
+//
+// It sets Language to [Options.Locale] when set. The value is not escaped:
+// check it with [ValidateLocale] first, as [Convert] does.
 //
 // Format: comma-separated key=value pairs. The password is not a load
 // option: LibreOfficeKit ignores it there, so [Convert] answers the
@@ -512,13 +541,17 @@ func BuildLoadOptions(opts Options) string {
 		parts = append(parts, "Batch=true")
 	}
 
-	// The macro keys come before [Options.FilterOptions], so that they hold
-	// when the filter options repeat them: LibreOfficeKit reads the first
-	// occurrence.
+	// The macro keys and Language come before [Options.FilterOptions], so
+	// that they hold when the filter options repeat them: LibreOfficeKit reads
+	// the first occurrence.
 	if opts.EnableMacros {
 		parts = append(parts, documentMacrosOn)
 	} else {
 		parts = append(parts, documentMacrosOff)
+	}
+
+	if opts.Locale != "" {
+		parts = append(parts, "Language="+opts.Locale)
 	}
 
 	if opts.FilterOptions != "" {

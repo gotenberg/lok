@@ -17,6 +17,10 @@ var (
 	// never asks for a password.
 	ErrInvalidPassword = errors.New("wrong document password")
 
+	// ErrInvalidLocale indicates that [Options.Locale] is not a language tag
+	// lok accepts.
+	ErrInvalidLocale = errors.New("invalid locale")
+
 	// ErrSaveFailed indicates that a document could not be saved.
 	ErrSaveFailed = errors.New("failed to save document")
 

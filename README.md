@@ -120,6 +120,8 @@ if err := lok.Convert(office, "input.docx", "output.pdf", opts); err != nil {
 
 `Options` configures the export: page orientation and paper size, page ranges, PDF/A conformance, image quality, watermark, and viewer preferences. `DefaultOptions` matches LibreOffice's own defaults.
 
+`Locale` takes a BCP 47 language tag such as `en-AU` or `de-DE` and formats the document's locale-dependent content with it: built-in date, number and currency formats, date fields, and the fallback paper size of a document that sets none. Empty follows the system locale, as `soffice` does. LibreOfficeKit applies a language to the whole process and keeps it, so lok puts the system locale back before a load without one; that costs one empty spreadsheet load, only after a load that set a language.
+
 > [!WARNING]
 > Calling `Close` (or `Lifecycle.Close`) is optional and usually best skipped: LibreOffice's `destroy()` can crash the Go runtime on shutdown (it installs signal handlers without `SA_ONSTACK`). Prefer letting process exit reclaim resources, or run with `GODEBUG=asyncpreemptoff=1`.
 
