@@ -85,4 +85,11 @@ Sub ResetLocale
   oAccess.ooSetupSystemLocale = &quot;&quot;
   oAccess.commitChanges()
 End Sub
+
+&apos; Runs the events LibreOffice queued instead of firing, such as a document&apos;s
+&apos; load event, so that the macros bound to them run before the conversion goes
+&apos; on.
+Sub ProcessEvents
+  createUnoService(&quot;com.sun.star.awt.Toolkit&quot;).processEventsToIdle()
+End Sub
 </script:module>

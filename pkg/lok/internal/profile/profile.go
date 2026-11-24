@@ -20,6 +20,10 @@ const MacroURL = "macro:///Standard.LokGeometry.Prepare"
 // system locale.
 const ResetLocaleMacroURL = "macro:///Standard.LokGeometry.ResetLocale"
 
+// ProcessEventsMacroURL is the runMacro URL of the macro that runs the events
+// LibreOffice queued, such as a document's load event.
+const ProcessEventsMacroURL = "macro:///Standard.LokGeometry.ProcessEvents"
+
 // Install establishes the profile at profileDir using the LibreOffice in
 // programPath, then adds the geometry macro to its Standard Basic library.
 func Install(programPath, profileDir string) error {

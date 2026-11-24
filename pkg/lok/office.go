@@ -252,11 +252,11 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 	// whole process since LibreOffice 26.8.2, so that every later conversion
 	// fails to run the preparation macro. Options that set it decide for
 	// themselves.
-	if !hasLoadParameter(options, "EnableMacrosExecution") {
+	if _, ok := loadParameter(options, "EnableMacrosExecution"); !ok {
 		options = strings.TrimSuffix(documentMacrosOff+","+options, ",")
 	}
 
-	if hasLoadParameter(options, "Language") {
+	if _, ok := loadParameter(options, "Language"); ok {
 		// LibreOfficeKit applies the language before it opens the file, so it
 		// sticks even when the load fails.
 		o.localeSet = true
@@ -273,6 +273,17 @@ func (o *Office) load(path, options, password string) (*Document, error) {
 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLoadFailed, err)
+	}
+
+	// LibreOffice queues a document's load event instead of firing it, so its
+	// macros would run only if something processed the queue before the
+	// document closes.
+	if documentMacrosRun(options) {
+		if err := o.internal.RunMacro(profile.ProcessEventsMacroURL); err != nil {
+			doc.Destroy()
+
+			return nil, fmt.Errorf("%w: running the document's load macros: %w", ErrLoadFailed, err)
+		}
 	}
 
 	return &Document{internal: doc, office: o}, nil

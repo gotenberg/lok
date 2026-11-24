@@ -647,22 +647,49 @@ func TestBuildFilterOptions_DisplayPDFDocumentTitle(t *testing.T) {
 	assertProp(t, parseFilterJSON(t, BuildFilterOptions(opts)), "DisplayPDFDocumentTitle", "boolean", false)
 }
 
-// TestHasLoadParameter mirrors where LibreOfficeKit's extractParameter looks
-// for a key: at the start of the options, or right after a comma.
-func TestHasLoadParameter(t *testing.T) {
+// TestLoadParameter mirrors where LibreOfficeKit's extractParameter looks
+// for a key: at the start of the options, or right after a comma, and the
+// first occurrence wins.
+func TestLoadParameter(t *testing.T) {
+	for _, tc := range []struct {
+		options string
+		value   string
+		found   bool
+	}{
+		{"", "", false},
+		{"EnableMacrosExecution=true", "true", true},
+		{"Batch=true,EnableMacrosExecution=false", "false", true},
+		{"EnableMacrosExecution=true,EnableMacrosExecution=false", "true", true},
+		{"Batch=true", "", false},
+		{"XEnableMacrosExecution=true", "", false},
+		{"Batch=true,FilterEnableMacrosExecution=true", "", false},
+	} {
+		value, found := loadParameter(tc.options, "EnableMacrosExecution")
+		if value != tc.value || found != tc.found {
+			t.Errorf("loadParameter(%q) = %q, %t, want %q, %t", tc.options, value, found, tc.value, tc.found)
+		}
+	}
+}
+
+// TestDocumentMacrosRun pins which loads let the document's macros run, the
+// ones after which lok processes the queued load event.
+func TestDocumentMacrosRun(t *testing.T) {
 	for _, tc := range []struct {
 		options string
 		want    bool
 	}{
 		{"", false},
+		{documentMacrosOff, false},
+		{documentMacrosOn, true},
+		{"Batch=true," + documentMacrosOn + ",Language=fr", true},
+		{"EnableMacrosExecution=false,MacroSecurityLevel=0", false},
 		{"EnableMacrosExecution=true", true},
-		{"Batch=true,EnableMacrosExecution=false", true},
-		{"Batch=true", false},
-		{"XEnableMacrosExecution=true", false},
-		{"Batch=true,FilterEnableMacrosExecution=true", false},
+		{"MacroSecurityLevel=3,EnableMacrosExecution=true", false},
+		{BuildLoadOptions(DefaultOptions()), false},
+		{BuildLoadOptions(Options{EnableMacros: true}), true},
 	} {
-		if got := hasLoadParameter(tc.options, "EnableMacrosExecution"); got != tc.want {
-			t.Errorf("hasLoadParameter(%q) = %t, want %t", tc.options, got, tc.want)
+		if got := documentMacrosRun(tc.options); got != tc.want {
+			t.Errorf("documentMacrosRun(%q) = %t, want %t", tc.options, got, tc.want)
 		}
 	}
 }

@@ -504,10 +504,27 @@ func ValidateLocale(locale string) error {
 	return fmt.Errorf("%w: %q", ErrInvalidLocale, locale)
 }
 
-// hasLoadParameter reports whether options sets name, the way LibreOfficeKit
-// looks for it: at the start, or after a comma.
-func hasLoadParameter(options, name string) bool {
-	return strings.HasPrefix(options, name+"=") || strings.Contains(options, ","+name+"=")
+// loadParameter returns the value options sets for name, the way
+// LibreOfficeKit looks for it: the first occurrence, at the start or after a
+// comma, up to the next comma.
+func loadParameter(options, name string) (string, bool) {
+	for part := range strings.SplitSeq(options, ",") {
+		if value, ok := strings.CutPrefix(part, name+"="); ok {
+			return value, true
+		}
+	}
+
+	return "", false
+}
+
+// documentMacrosRun reports whether a load with options lets the document's
+// macros run: EnableMacrosExecution is true and MacroSecurityLevel is not 3,
+// the level that keeps them off.
+func documentMacrosRun(options string) bool {
+	enabled, _ := loadParameter(options, "EnableMacrosExecution")
+	level, _ := loadParameter(options, "MacroSecurityLevel")
+
+	return enabled == "true" && level != "3"
 }
 
 // BuildLoadOptions builds a document load options string from [Options].
